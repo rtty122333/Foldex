@@ -65,7 +65,7 @@ class Handler(object):
 
     def heartbeat(self,msgObj,cb):
         log.debug("in heartbeat handler")
-        backend.heartbeat(msgObj[u'token'], msgObj[u'ip'], msgObj[u'vm_id'])
+        backend.heartbeat(msgObj[u'token'], msgObj[u'client_ip'], msgObj[u'vm_id'])
         cb(204, None)
 
 

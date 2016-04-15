@@ -32,26 +32,27 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     def do_GET( self ):
         log.debug("[GET request received]")
-        datas = self.rfile.read(int(self.headers['content-length']))
-        # print datas
+        data = self.rfile.read(int(self.headers['content-length']))
+        data['client_ip'] = self.client_address[0]
+        data['client_port'] = self.client_address[1]
+        # print data
         # print self.client_address
         # print self.path
         # print self.command
-        self.handler.process_msg(self.path[1:],json.loads(datas),self.sendResult)
-
+        self.handler.process_msg(self.path[1:], json.loads(data), self.sendResult)
 
     def do_POST( self ):
         log.debug("[POST request received]")
-        datas = self.rfile.read(int(self.headers['content-length']))
-        self.handler.process_msg(self.path[1:],json.loads(datas),self.sendResult)
+        data = self.rfile.read(int(self.headers['content-length']))
+        data['client_ip'] = self.client_address[0]
+        data['client_port'] = self.client_address[1]
+        self.handler.process_msg(self.path[1:], json.loads(data), self.sendResult)
 
     def sendResult(self, code, msg):
-        log.debug('result:',msg)
+        log.debug('result: {}'.format(msg))
         self.send_response(code)
         self.send_header("Content-type", "text/html;charset=utf-8" )
-        # f = open('C:/workspaces/workspace_python/client/client.py','r')
-        # ct = f.read()
-        msg=json.dumps(msg)
+        msg = json.dumps(msg)
         self.send_header('Content-length', str(len(msg)))
         self.end_headers()
         self.wfile.write( msg )
