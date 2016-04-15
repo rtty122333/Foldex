@@ -23,11 +23,14 @@ def login(username, password):
 
 
 def request_connect(token, vm_id):
-    user = session.Session.get(token)
-    log.info('User {} attempt to connect to VM {}'.format(user.username, vm_id))
     try:
+        user = session.Session.get(token)
+        log.info('User {} attempt to connect to VM {}'.format(user.username, vm_id))
         user.start_vm(vm_id)
         return { vm_id: 'ACTIVE'}
+    except session.InvalidTokenError as e:
+        log.error(e)
+        raise
     except VMError as e:
         log.error('User {} attempt to connect to {} but failed: {}'.format(user.username, vm_id, e))
         raise
@@ -42,5 +45,9 @@ def stop_heartbeat_monitor():
 
 
 def heartbeat(token, from_ip, vm_id=None):
-    user = session.Session.get(token)
-    _monitor.update_connection(user.username, from_ip, vm_id)
+    try:
+        user = session.Session.get(token)
+        _monitor.update_connection(user.username, from_ip, vm_id)
+    except session.InvalidTokenError as e:
+        log.error(e)
+        raise
