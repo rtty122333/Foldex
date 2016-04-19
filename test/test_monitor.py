@@ -5,10 +5,9 @@ import logging
 import logging.config
 import random
 import time
-import logconf
 import sys, os.path as path 
 sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
-from server import user_monitor
+from server import user_monitor, logconf
 
 
 logging.config.dictConfig(logconf.conf_dict)
@@ -17,7 +16,7 @@ log = logging.getLogger('server.test_os')
 def test():
     umt = user_monitor.UserMonitor()
     umt.start()
-    for i in range(5):
+    for i in range(3):
         for n in range(5):
             user = 'user-{}'.format(n)
             ip = 'ip-{}'.format(n)
