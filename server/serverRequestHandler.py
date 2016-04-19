@@ -30,12 +30,13 @@ class Handler(object):
     def login(self,msgObj,cb):
         log.debug('in login handler')
         try:
+            # 请求keystone获得身份认证结果
+            # 认证通过请求vm信息
+            # TODO: 得到vm获取本地策略
+            # 返回认证结果+vm信息+本地策略
+            # 本地sessions更新接收heartBeat
             res = backend.login(msgObj[u'username'], msgObj[u'password'])
-            #请求keystone获得身份认证结果
-            #认证通过请求vm信息
-            #得到vm获取本地策略
-            #返回认证结果+vm信息+本地策略
-            #本地sessions更新接收heartBeat
+            backend.init_user(res[u'token'], msgObj[u'client_ip'])
             return cb(200, res)
         except session.AuthenticationFailure:
             return cb(401, {'err': 'invalid username or password'})
@@ -54,14 +55,14 @@ class Handler(object):
         try:
             res = backend.request_connect(msgObj[u'token'], msgObj[u'vm_id'])
             #vm未开启时需要通知nova开启
-            cb(res)
+            cb(200, res)
         except session.VMError as e:
             cb(500, {'err': e})
 
     def disconnect_vm(self,msgObj,cb):
         log.debug("in disconnect_vm handler")
         #vm未开启时需要通知nova开启
-        cb(msgObj)
+        cb(200, msgObj)
 
     def heartbeat(self,msgObj,cb):
         log.debug("in heartbeat handler")

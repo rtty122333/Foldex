@@ -32,21 +32,19 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     def do_GET( self ):
         log.debug("[GET request received]")
-        data = self.rfile.read(int(self.headers['content-length']))
+        datastr = self.rfile.read(int(self.headers['content-length']))
+        data = json.loads(datastr)
         data['client_ip'] = self.client_address[0]
         data['client_port'] = self.client_address[1]
-        # print data
-        # print self.client_address
-        # print self.path
-        # print self.command
-        self.handler.process_msg(self.path[1:], json.loads(data), self.sendResult)
+        self.handler.process_msg(self.path[1:], data, self.sendResult)
 
     def do_POST( self ):
         log.debug("[POST request received]")
-        data = self.rfile.read(int(self.headers['content-length']))
+        datastr = self.rfile.read(int(self.headers['content-length']))
+        data = json.loads(datastr)
         data['client_ip'] = self.client_address[0]
         data['client_port'] = self.client_address[1]
-        self.handler.process_msg(self.path[1:], json.loads(data), self.sendResult)
+        self.handler.process_msg(self.path[1:], data, self.sendResult)
 
     def sendResult(self, code, msg):
         log.debug('result: {}'.format(msg))

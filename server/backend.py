@@ -14,8 +14,11 @@ def login(username, password):
     try:
         user = session.Session(username, password)
         admin = session.AdminSession(username)
-        info = admin.get_vms()
-        info['token'] = user.token
+        vms = admin.get_vms()
+        info = {
+            'vms': vms,
+            'token': user.token
+        }
         return info
     except session.AuthenticationFailure as e:
         log.error(e)
@@ -26,8 +29,8 @@ def request_connect(token, vm_id):
     try:
         user = session.Session.get(token)
         log.info('User {} attempt to connect to VM {}'.format(user.username, vm_id))
-        user.start_vm(vm_id)
-        return { vm_id: 'ACTIVE'}
+        info = user.start_vm(vm_id)
+        return info
     except session.InvalidTokenError as e:
         log.error(e)
         raise
@@ -48,6 +51,16 @@ def heartbeat(token, from_ip, vm_id=None):
     try:
         user = session.Session.get(token)
         _monitor.update_connection(user.username, from_ip, vm_id)
+    except session.InvalidTokenError as e:
+        log.error(e)
+        raise
+
+
+def init_user(token, from_ip):
+    try:
+        user = session.Session.get(token)
+        _monitor.update_connection(user.username, from_ip)
+        _monitor.notify(user.username, True)
     except session.InvalidTokenError as e:
         log.error(e)
         raise

@@ -46,6 +46,7 @@ class UserMonitor(object):
             time.sleep(self.refresh_interval)
 
     def notify(self, user, is_online):
+        log.debug('======================= user {} is now {}'.format(user, 'online' if is_online else 'offline'))
         pass
 
     def start(self):

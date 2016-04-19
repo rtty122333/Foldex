@@ -103,12 +103,6 @@ class Session(object):
                         result.append(address['addr'])
             return result
 
-        def get_spice_port(vm_id):
-            ps = subprocess.Popen(['ps', '-ef'], stdout=subprocess.PIPE)
-            qemu = subprocess.Popen(["grep", vm_id], stdin=ps.stdout, stdout=subprocess.PIPE)
-            out = qemu.communicate()[0]
-            m = self.spice_port_pattern.search(out)
-            return m.group('port') if m else ''
 
         instances = self.conn.compute.servers() # instances 是 generator
         info = {}
@@ -117,7 +111,6 @@ class Session(object):
                 u'name': vm.name,
                 u'status': vm.status,
                 u'floating_ips': get_floating_ips(vm.addresses),
-                u'spice_port': get_spice_port(vm.id)
             }
         return info
 
@@ -149,6 +142,14 @@ class Session(object):
         返回时VM已启动，或因错误无法启动，或操作超时。
         后两者抛出VMError异常。
         """
+
+        def get_spice_port(vm_id):
+            ps = subprocess.Popen(['ps', '-ef'], stdout=subprocess.PIPE)
+            qemu = subprocess.Popen(["grep", vm_id], stdin=ps.stdout, stdout=subprocess.PIPE)
+            out = qemu.communicate()[0]
+            m = self.spice_port_pattern.search(out)
+            return m.group('port') if m else ''
+
         session = self.conn.session
         vm = self.conn.compute.get_server(vm_id)
         if vm.status == 'SHUTOFF': # 只在关机状态下执行
@@ -157,6 +158,14 @@ class Session(object):
             vm.action(session, body)
             self.wait_for_status(vm, 'ACTIVE', self.status_wait_timeout)
             log.info('VM {} powered on'.format(vm_id))
+
+        info = {
+            vm_id: {
+                'status': 'ACTIVE',
+                'spice_port': get_spice_port(vm.id)
+            }
+        }
+        return info
 
     def stop_vm(self, vm_id):
         """关闭用户的VM。
