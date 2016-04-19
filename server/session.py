@@ -3,7 +3,6 @@
 import logging
 import re
 import time
-import socket
 import subprocess
 
 import openstack
@@ -27,24 +26,23 @@ CONF.register_group(opt_os_group)
 CONF.register_opts(os_opts, opt_os_group)
 
 
-class AuthenticationFailure:
+class AuthenticationFailure(RuntimeError):
     """认证异常"""
 
     def __init__(self, user):
-        self.user = user
-
-    def __str__(self):
-        return "Authentication failed: {}".format(self.user)
+        super(AuthenticationFailure, self).__init__('Authentication failure: {}'.format(user))
 
 
-class VMError:
+class InvalidTokenError(RuntimeError):
+    def __init__(self, token):
+        super(InvalidTokenError, self).__init__('Invalid token: {}'.format(token))
+
+
+class VMError(RuntimeError):
     """VM状态异常"""
 
     def __init__(self, msg):
-        self.msg = msg
-
-    def __str__(self):
-        return self.msg
+        super(VMError, self).__init__(msg)
 
 
 class Session(object):
@@ -56,6 +54,21 @@ class Session(object):
     status_wait_timeout = 10
     # spice 端口号匹配样式
     spice_port_pattern = re.compile(r'-spice port=(?P<port>\d+),')
+
+    token_map = {}
+
+    @classmethod
+    def get(cls, token):
+        try:
+            session = cls.token_map[token]
+            return session
+        except KeyError:
+            raise InvalidTokenError(token)
+        
+    @classmethod
+    def register(cls, session):
+        cls.token_map[session.token] = session
+
 
     def __init__(self, username, password, project=None):
         """使用用户名和密码创建会话。
@@ -71,6 +84,8 @@ class Session(object):
                 project_domain_id='Default')
         try:
             self.token = self.conn.authorize()
+            self.username = username
+            Session.register(self)
         except openstack.exceptions.HttpException:
             raise AuthenticationFailure(username)
 
@@ -88,19 +103,16 @@ class Session(object):
                         result.append(address['addr'])
             return result
 
-        def get_spice_port(vm_id):
-            ps = subprocess.Popen(['ps', '-ef'], stdout=subprocess.PIPE)
-            qemu = subprocess.Popen(["grep", vm_id], stdin=ps.stdout, stdout=subprocess.PIPE)
-            out = qemu.communicate()[0]
-            m = self.spice_port_pattern.search(out)
-            return m.group('port') if m else ''
 
         instances = self.conn.compute.servers() # instances 是 generator
-        return [{u'id': vm.id,
-            u'status': vm.status,
-            u'floating_ips': get_floating_ips(vm.addresses),
-            u'spice_port': get_spice_port(vm.id)} for vm in instances]
-
+        info = {}
+        for vm in instances:
+            info[vm.id] = {
+                u'name': vm.name,
+                u'status': vm.status,
+                u'floating_ips': get_floating_ips(vm.addresses),
+            }
+        return info
 
     def wait_for_status(self, vm_id, status, timeout):
         """等待指定VM达到需要的状态。
@@ -130,6 +142,14 @@ class Session(object):
         返回时VM已启动，或因错误无法启动，或操作超时。
         后两者抛出VMError异常。
         """
+
+        def get_spice_port(vm_id):
+            ps = subprocess.Popen(['ps', '-ef'], stdout=subprocess.PIPE)
+            qemu = subprocess.Popen(["grep", vm_id], stdin=ps.stdout, stdout=subprocess.PIPE)
+            out = qemu.communicate()[0]
+            m = self.spice_port_pattern.search(out)
+            return m.group('port') if m else ''
+
         session = self.conn.session
         vm = self.conn.compute.get_server(vm_id)
         if vm.status == 'SHUTOFF': # 只在关机状态下执行
@@ -138,6 +158,14 @@ class Session(object):
             vm.action(session, body)
             self.wait_for_status(vm, 'ACTIVE', self.status_wait_timeout)
             log.info('VM {} powered on'.format(vm_id))
+
+        info = {
+            vm_id: {
+                'status': 'ACTIVE',
+                'spice_port': get_spice_port(vm.id)
+            }
+        }
+        return info
 
     def stop_vm(self, vm_id):
         """关闭用户的VM。
@@ -178,9 +206,9 @@ class AdminSession(Session):
     def get_vms(self):
         """获取项目中的VM信息，包含VM所在服务器的名称和ip。"""
         vms = super(AdminSession, self).get_vms()
-        for vm in vms:
-            hostname, host_ip = self.get_vm_host(vm['id'])
-            vm[u'host_name'] = hostname
-            vm[u'host_ip'] = host_ip
+        for id in vms:
+            hostname, host_ip = self.get_vm_host(id)
+            vms[id][u'host_name'] = hostname
+            vms[id][u'spice_ip'] = host_ip
         return vms
 

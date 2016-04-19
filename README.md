@@ -8,10 +8,20 @@
 
         sudo pip install openstacksdk
 
+- 安装 `mysql` 模块
+
+    在 `http://www.codegood.com/downloads` 下载对应版本编译版本并安装
+
+- 建立数据库
+
+    在 `mysql` 命令行模式下执行 `source server.sql`（注意正确路径）加入数据信息
+
 ### TODO:
 
-用部署工具自动配置环境。
+- 用部署工具自动配置环境
+
+- 自动配置数据库
 
 ## 程序配置
 
-- 将 `etc/foldex.conf` 中的参数修改为合适值，复制到 `/etc/foldex/`下。
+- 将 `etc/foldex.conf` 中的参数修改为合适值，复制到 `/etc/foldex/`下

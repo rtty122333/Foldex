@@ -37,19 +37,16 @@ class UserMonitor(object):
     def refresh_status(self):
         while not self.terminated:
             now = time.time()
-            log.debug('========== begin refresh ==========')
             for user in self.memo:
                 rec = self.memo[user]
-                if now - rec.last_update > self.timeout:
-                    rec.online = False
-                    log.debug('user {} offline'.format(user))
-                    self.notify(user)
-                else:
-                    log.debug('user {} online'.format(user))
-            log.debug('----------- end refresh -----------')
+                online = now - rec.last_update < self.timeout
+                if online != rec.online:
+                    rec.online = online
+                    self.notify(user, online)
             time.sleep(self.refresh_interval)
 
-    def notify(self, user):
+    def notify(self, user, is_online):
+        log.debug('======================= user {} is now {}'.format(user, 'online' if is_online else 'offline'))
         pass
 
     def start(self):
