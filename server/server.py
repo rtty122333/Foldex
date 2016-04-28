@@ -41,6 +41,7 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     def do_POST( self ):
         log.debug("[POST request received]")
         datastr = self.rfile.read(int(self.headers['content-length']))
+        log.debug(datastr)
         data = json.loads(datastr)
         data['client_ip'] = self.client_address[0]
         data['client_port'] = self.client_address[1]

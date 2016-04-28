@@ -66,7 +66,11 @@ class Handler(object):
 
     def heartbeat(self,msgObj,cb):
         log.debug("in heartbeat handler")
-        backend.heartbeat(msgObj[u'token'], msgObj[u'client_ip'], msgObj[u'vm_id'])
+        if 'vm_id' in msgObj:
+            backend.heartbeat(msgObj[u'token'], msgObj[u'client_ip'], msgObj[u'vm_id'])
+        else:
+            backend.heartbeat(msgObj[u'token'], msgObj[u'client_ip'])
+
         cb(204, None)
 
 
