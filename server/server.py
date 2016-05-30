@@ -2,12 +2,17 @@
 
 import json
 import logging
-import BaseHTTPServer
+
 import backend
+import httpserver
 import logconf
-import serverRequestHandler
+import wsserver
 
 from oslo_config import cfg
+from twisted.internet import reactor
+from twisted.web.server import Site
+from autobahn.twisted.resource import WebSocketResource
+from twisted.web.resource import Resource
 
 
 log = logging.getLogger(__name__)
@@ -27,50 +32,33 @@ CONF.register_group(opt_server_group)
 CONF.register_opts(server_opts, opt_server_group)
 
 
-class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
-    handler = serverRequestHandler.Handler()
-
-    def do_GET( self ):
-        log.debug("[GET request received]")
-        datastr = self.rfile.read(int(self.headers['content-length']))
-        data = json.loads(datastr)
-        data['client_ip'] = self.client_address[0]
-        data['client_port'] = self.client_address[1]
-        self.handler.process_msg(self.path[1:], data, self.sendResult)
-
-    def do_POST( self ):
-        log.debug("[POST request received]")
-        datastr = self.rfile.read(int(self.headers['content-length']))
-        log.debug(datastr)
-        data = json.loads(datastr)
-        data['client_ip'] = self.client_address[0]
-        data['client_port'] = self.client_address[1]
-        self.handler.process_msg(self.path[1:], data, self.sendResult)
-
-    def sendResult(self, code, msg):
-        log.debug('result: {}'.format(msg))
-        self.send_response(code)
-        self.send_header("Content-type", "text/html;charset=utf-8" )
-        msg = json.dumps(msg)
-        self.send_header('Content-length', str(len(msg)))
-        self.end_headers()
-        self.wfile.write( msg )
-
-
 class Server(object):
     def run(self):
         cfg.CONF(default_config_files=['/etc/foldex/foldex.conf'])
         host, port = CONF.server.host, CONF.server.port
 
         try:
+            factory = wsserver.BroadcastPreparedServerFactory(u"ws://127.0.0.1:{}".format(port))
+            factory.protocol = wsserver.WSServerProtocol
+            wsresource = WebSocketResource(factory)
+
+            backend.init_ws(factory)
             backend.start_heartbeat_monitor()
-            s = BaseHTTPServer.HTTPServer((host, port), RequestHandler)
-            log.debug("Serving at port {}".format(port))
-            s.serve_forever()
+
+            root = Resource()
+            root.putChild('ws', wsresource)
+            root.putChild('v1', httpserver.VDIResource())
+            site = Site(root)
+
+            reactor.listenTCP(port, site)
+
+            log.debug("Serving HTTP/WS at port {}".format(port))
+            reactor.run()
         except KeyboardInterrupt:
             log.info("Terminating...")
         except Exception as e:
             log.debug(e)
             log.error("Failed to start server")
+            raise
         finally:
             backend.stop_heartbeat_monitor()

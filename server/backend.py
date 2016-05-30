@@ -7,7 +7,11 @@ import user_monitor
 
 log = logging.getLogger(__name__)
 
-_monitor = user_monitor.UserMonitor(timeout=30, interval=5)
+_monitor = None
+
+def init_ws(wsf):
+    global _monitor
+    _monitor = user_monitor.UserMonitor(wsf, timeout=30, interval=5)
 
 def login(username, password):
     log.info('User {} logging in'.format(username))
@@ -23,7 +27,6 @@ def login(username, password):
     except session.AuthenticationFailure as e:
         log.error(e)
         raise
-
 
 def request_connect(token, vm_id):
     try:
@@ -60,7 +63,8 @@ def init_user(token, from_ip):
     try:
         user = session.Session.get(token)
         _monitor.update_connection(user.username, from_ip)
-        _monitor.notify(user.username, True)
+        _monitor.notify(user.username, is_online=True, vm=None)
     except session.InvalidTokenError as e:
         log.error(e)
         raise
+
