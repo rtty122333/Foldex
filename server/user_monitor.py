@@ -38,8 +38,11 @@ class UserMonitor(object):
         rec.online = True
         rec.last_update = time.time()
 
-    def get_status(self, user):
-        return self.memo[user]
+    def status(self):
+        for username in self.memo:
+            user = self.memo[username]
+            if user.online:
+                yield username, user.vm
 
     def refresh_status(self):
         while not self.terminated:
@@ -50,6 +53,8 @@ class UserMonitor(object):
                 if online != rec.online or rec.vm_changed:
                     rec.online = online
                     rec.vm_changed = False
+                    if not online:
+                        rec.vm = None
                     self.notify(user, online, rec.vm)
             time.sleep(self.refresh_interval)
 

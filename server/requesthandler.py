@@ -9,22 +9,26 @@ log = logging.getLogger(__name__)
 
 class Handler(object):
     def __init__(self):
-        self.processFuncs={
+        self.handlers = {}
+        self.handlers['POST'] = {
             "login":    self.login,
             "logout":   self.logout,
             "conn":     self.connect_vm,
             "disconn":  self.disconnect_vm,
             "heartbeat":self.heartbeat
         }
+        self.handlers['GET'] = {
+            "vdstatus": self.user_status
+        }
 
-    def handle(self, action, msgObj):
-        log.debug('action: {}, msg: {}'.format(action, msgObj))
+    def handle(self, method, action, msgObj):
+        log.debug('[{}] action: {}, msg: {}'.format(method, action, msgObj))
         try:
-            return self.processFuncs.get(action)(msgObj)
+            return self.handlers[method].get(action)(msgObj)
         except Exception as e:
             log.error(e)
-            log.error("unknown action: {}".format(action))
-            return 400, {'err':'unknown action'}
+            log.error("unknown {} action: {}".format(method, action))
+            return 400, {'err':'unknown {} action'.format(method)}
 
     def login(self, msgObj):
         log.debug('in login handler')
@@ -43,13 +47,13 @@ class Handler(object):
             log.error(e)
             log.error('unidentified error occurred in login handler')
             return 500, {'err':'sth wrong when handle you msg'}
-        
 
-    def logout(self,msgObj):
+    # 未使用
+    def logout(self, msgObj):
         log.debug("in logout handler")
         return 200, msgObj
 
-    def connect_vm(self,msgObj):
+    def connect_vm(self, msgObj):
         log.debug('in connect_vm handler')
         try:
             res = backend.request_connect(msgObj[u'token'], msgObj[u'vm_id'])
@@ -58,12 +62,12 @@ class Handler(object):
         except session.VMError as e:
             return 500, {'err': e}
 
-    def disconnect_vm(self,msgObj):
+    # 未使用
+    def disconnect_vm(self, msgObj):
         log.debug("in disconnect_vm handler")
-        #vm未开启时需要通知nova开启
         return 200, msgObj
 
-    def heartbeat(self,msgObj):
+    def heartbeat(self, msgObj):
         log.debug("in heartbeat handler")
         if 'vm_id' in msgObj:
             backend.heartbeat(msgObj[u'token'], msgObj[u'client_ip'], msgObj[u'vm_id'])
@@ -71,3 +75,6 @@ class Handler(object):
             backend.heartbeat(msgObj[u'token'], msgObj[u'client_ip'])
 
         return 204, None
+
+    def user_status(self, msg):
+        return 200, backend.user_status()
