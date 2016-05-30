@@ -1,4 +1,4 @@
-#encoding=utf-8
+# -*- coding: utf-8 -*-
 
 import logging
 import backend
@@ -6,7 +6,6 @@ import session
 
 
 log = logging.getLogger(__name__)
-
 
 class Handler(object):
     def __init__(self):
@@ -18,16 +17,16 @@ class Handler(object):
             "heartbeat":self.heartbeat
         }
 
-    def process_msg(self,action,msgObj,cb):
+    def handle(self, action, msgObj):
         log.debug('action: {}, msg: {}'.format(action, msgObj))
         try:
-            return self.processFuncs.get(action)(msgObj,cb)
+            return self.processFuncs.get(action)(msgObj)
         except Exception as e:
             log.error(e)
             log.error("unknown action: {}".format(action))
-            return cb(400, {'err':'unknown action'})
+            return 400, {'err':'unknown action'}
 
-    def login(self,msgObj,cb):
+    def login(self, msgObj):
         log.debug('in login handler')
         try:
             # 请求keystone获得身份认证结果
@@ -37,42 +36,38 @@ class Handler(object):
             # 本地sessions更新接收heartBeat
             res = backend.login(msgObj[u'username'], msgObj[u'password'])
             backend.init_user(res[u'token'], msgObj[u'client_ip'])
-            return cb(200, res)
+            return 200, res
         except session.AuthenticationFailure:
-            return cb(401, {'err': 'invalid username or password'})
+            return 401, {'err': 'invalid username or password'}
         except Exception as e:
             log.error(e)
             log.error('unidentified error occurred in login handler')
-            return cb(500, {'err':'sth wrong when handle you msg'})
+            return 500, {'err':'sth wrong when handle you msg'}
         
 
-    def logout(self,msgObj,cb):
+    def logout(self,msgObj):
         log.debug("in logout handler")
-        cb(msgObj)
+        return 200, msgObj
 
-    def connect_vm(self,msgObj,cb):
+    def connect_vm(self,msgObj):
         log.debug('in connect_vm handler')
         try:
             res = backend.request_connect(msgObj[u'token'], msgObj[u'vm_id'])
             #vm未开启时需要通知nova开启
-            cb(200, res)
+            return 200, res
         except session.VMError as e:
-            cb(500, {'err': e})
+            return 500, {'err': e}
 
-    def disconnect_vm(self,msgObj,cb):
+    def disconnect_vm(self,msgObj):
         log.debug("in disconnect_vm handler")
         #vm未开启时需要通知nova开启
-        cb(200, msgObj)
+        return 200, msgObj
 
-    def heartbeat(self,msgObj,cb):
+    def heartbeat(self,msgObj):
         log.debug("in heartbeat handler")
         if 'vm_id' in msgObj:
             backend.heartbeat(msgObj[u'token'], msgObj[u'client_ip'], msgObj[u'vm_id'])
         else:
             backend.heartbeat(msgObj[u'token'], msgObj[u'client_ip'])
 
-        cb(204, None)
-
-
-    def test(self):
-        print "test"
+        return 204, None

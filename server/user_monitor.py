@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 
+import json
 import logging
 import time
 import threading
+
 from collections import defaultdict
 
 
@@ -12,14 +14,18 @@ log = logging.getLogger(__name__)
 class UserMonitor(object):
 
     class Record(object):
-        __slots__ = ['ip', 'vm', 'online', 'last_update']
+        def __init__(self):
+            self.last_update = time.time()
+            self.online = False
+            self.vm = None
 
-    def __init__(self, timeout=30, interval=5):
+    def __init__(self, wsf, timeout=30, interval=5):
         self.memo = defaultdict(self.Record)
         self.terminated = False
         self.refresher = threading.Thread(target=self.refresh_status)
         self.timeout = timeout
         self.refresh_interval = interval
+        self.wsf = wsf
 
     def __del__(self):
         self.stop()
@@ -27,6 +33,7 @@ class UserMonitor(object):
     def update_connection(self, user, ip, vm=None):
         rec = self.memo[user]
         rec.ip = ip
+        rec.vm_changed = rec.vm != vm
         rec.vm = vm
         rec.online = True
         rec.last_update = time.time()
@@ -40,14 +47,15 @@ class UserMonitor(object):
             for user in self.memo:
                 rec = self.memo[user]
                 online = now - rec.last_update < self.timeout
-                if online != rec.online:
+                if online != rec.online or rec.vm_changed:
                     rec.online = online
-                    self.notify(user, online)
+                    rec.vm_changed = False
+                    self.notify(user, online, rec.vm)
             time.sleep(self.refresh_interval)
 
-    def notify(self, user, is_online):
+    def notify(self, user, is_online, vm):
         log.debug('======================= user {} is now {}'.format(user, 'online' if is_online else 'offline'))
-        pass
+        self.wsf.broadcast(json.dumps({ 'action': 'notify', 'user': user, 'online': is_online, 'vm': vm }))
 
     def start(self):
         self.terminated = False
