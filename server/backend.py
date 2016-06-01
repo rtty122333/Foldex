@@ -68,3 +68,8 @@ def init_user(token, from_ip):
         log.error(e)
         raise
 
+
+def user_status():
+    status = [{'user': t[0], 'vm': t[1]} for t in _monitor.status()]
+    return status
+
