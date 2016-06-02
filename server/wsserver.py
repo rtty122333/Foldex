@@ -37,7 +37,8 @@ class WSServerProtocol(WebSocketServerProtocol):
                 # 处理前端请求，如断开指定连接
                 if cmd['action'] == 'disconnect':
                     vm_id = cmd['vm']
-                    backend.disconnect(token='', vm_id=vm_id)
+                    user = cmd['user']
+                    backend.disconnect_user(user, vm_id)
 
     def connectionLost(self, reason):
         WebSocketServerProtocol.connectionLost(self, reason)
