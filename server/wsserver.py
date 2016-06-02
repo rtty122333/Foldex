@@ -6,7 +6,8 @@ import logging
 from autobahn.twisted.websocket import WebSocketServerFactory, \
     WebSocketServerProtocol
 
-from server import logconf
+import backend
+import logconf
 
 
 log = logging.getLogger(__name__)
@@ -24,7 +25,7 @@ class WSServerProtocol(WebSocketServerProtocol):
     def onMessage(self, payload, isBinary):
         if isBinary:
             log.debug("Binary message received: {0} bytes".format(len(payload)))
-            # raise
+            # should raise
         else:
             msg = payload.decode('utf-8')
             log.debug("Text message received: {0}".format(msg))
@@ -33,10 +34,10 @@ class WSServerProtocol(WebSocketServerProtocol):
             except ValueError:
                 log.warning('Message is not valid JSON: {}'.format(msg))
             else:
-                # TODO: 处理前端请求，如断开指定连接
+                # 处理前端请求，如断开指定连接
                 if cmd['action'] == 'disconnect':
-                    # TODO
-                    self.factory.broadcast(msg, ensure_ascii=False)
+                    vm_id = cmd['vm']
+                    backend.disconnect(token='', vm_id=vm_id)
 
     def connectionLost(self, reason):
         WebSocketServerProtocol.connectionLost(self, reason)
