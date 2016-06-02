@@ -72,11 +72,23 @@ def request_connect(token, vm_id):
         log.error('User {} attempt to connect to {} but failed: {}'.format(user.username, vm_id, e))
         raise
 
-def disconnect(token, vm_id):
+def disconnect_user(user, vm_id):
+    # 如果是前端请求断开连接，次函数会执行两次，
+    # 一次是响应前端请求，一次是断开之后响应客户端请求
     log.debug('disconnecting vm: {}'.format(vm_id))
     localport = _connections[vm_id]
     _proxy.delete_proxy(localport)
+    _monitor.update_connection(user, vm=None)
+    _monitor.notify(user)
     return {'status': 'OK'}
+
+def disconnect(token, vm_id):
+    try:
+        user = session.Session.get(token)
+        return disconnect_user(user.username, vm_id)
+    except session.InvalidTokenError as e:
+        log.error(e)
+        raise
 
 def start_heartbeat_monitor():
     _monitor.start()
@@ -99,7 +111,7 @@ def init_user(token, from_ip):
     try:
         user = session.Session.get(token)
         _monitor.update_connection(user.username, from_ip)
-        _monitor.notify(user.username, is_online=True, vm=None)
+        _monitor.notify(user.username)
     except session.InvalidTokenError as e:
         log.error(e)
         raise

@@ -30,9 +30,10 @@ class UserMonitor(object):
     def __del__(self):
         self.stop()
 
-    def update_connection(self, user, ip, vm=None):
+    def update_connection(self, user, ip='nochange', vm=None):
         rec = self.memo[user]
-        rec.ip = ip
+        if ip != 'nochange':
+            rec.ip = ip
         rec.vm_changed = rec.vm != vm
         rec.vm = vm
         rec.online = True
@@ -55,11 +56,13 @@ class UserMonitor(object):
                     rec.vm_changed = False
                     if not online:
                         rec.vm = None
-                    self.notify(user, online, rec.vm)
+                    self.notify(user)
             time.sleep(self.refresh_interval)
 
-    def notify(self, user, is_online, vm):
-        log.debug('======================= user {} is now {}'.format(user, 'online' if is_online else 'offline'))
+    def notify(self, user):
+        rec = self.memo[user]
+        is_online, vm = rec.online, rec.vm
+        log.debug('======================= user {} status changed. [{}][{}]'.format(user, 'ONLINE' if is_online else 'OFFLINE', vm))
         self.wsf.broadcast(json.dumps({ 'action': 'notify', 'user': user, 'online': is_online, 'vm': vm }))
 
     def start(self):
