@@ -130,6 +130,8 @@ class ServerProxy(Singleton):
         return port
 
     def delete_proxy(self, port):
+        if port not in self.server_list:
+            return
         self.server_list[port].stop()
         del self.server_list[port]
         log.debug('proxy on {} removed'.format(port))
