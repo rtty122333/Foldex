@@ -62,10 +62,10 @@ class Handler(object):
         except session.VMError as e:
             return 500, {'err': e}
 
-    # 未使用
     def disconnect_vm(self, msgObj):
         log.debug("in disconnect_vm handler")
-        return 200, msgObj
+        res = backend.disconnect(msgObj[u'token'], msgObj[u'vm_id'])
+        return 200, res
 
     def heartbeat(self, msgObj):
         log.debug("in heartbeat handler")
