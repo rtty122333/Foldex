@@ -62,3 +62,4 @@ class Server(object):
             raise
         finally:
             backend.stop_heartbeat_monitor()
+            backend.kill_all_proxy()

@@ -1,12 +1,15 @@
+import logging
 import socket
 import select
+import threading
 import time
 import sys
-import threading
+
+
+log = logging.getLogger(__name__)
 
 buffer_size = 4096
-delay = 0.0001
-#forward_to = ("192.168.161.14", 3389)
+delay = 0.005
 
 class Forward(object):
 
@@ -18,7 +21,7 @@ class Forward(object):
             self.forward.connect((host, port))
             return self.forward
         except Exception, e:
-            print e
+            log.error(e)
             return False
 
 def findFreePort():
@@ -31,7 +34,7 @@ def findFreePort():
         addr, port = s.getsockname()
         s.close()
     except socket.error as msg:
-        print msg
+        log.error(msg)
         s.close()
     else:
         return port
@@ -77,20 +80,20 @@ class FServer(threading.Thread):
         forward = Forward().start(self.forward_addr[0], self.forward_addr[1])
         clientsock, clientaddr = self.server.accept()
         if forward:
-            print clientaddr, "has connected"
+            log.debug("{} has connected".format(clientaddr))
             self.input_list.append(clientsock)
             self.input_list.append(forward)
             self.channel[clientsock] = forward
             self.channel[forward] = clientsock
-            for k in self.channel:
-                print self.channel[k]
+            #for k in self.channel:
+            #    print self.channel[k]
         else:
-            print "Cannot establish connection with remote server.",
-            print "Closing connection with client side", clientaddr
+            log.warning("Cannot establish connection with remote server.")
+            log.warning("Closing connection with client side: {}".format(clientaddr))
             clientsock.close()
 
     def on_close(self):
-        print "has disconnected"
+        #print "has disconnected"
         self.input_list.remove(self.s)
         self.input_list.remove(self.channel[self.s])
         out = self.channel[self.s]
@@ -122,7 +125,16 @@ class ServerProxy(Singleton):
         server = FServer(localaddr, port, dest_ip, dest_port)
         self.server_list[port] = server
         server.start()
+        log.debug('proxy to {}:{} from {}:{}'.format(dest_ip, dest_port, localaddr, port))
+        log.debug('connection count: {}'.format(len(self.server_list)))
         return port
+
     def delete_proxy(self, port):
         self.server_list[port].stop()
         del self.server_list[port]
+        log.debug('proxy on {} removed'.format(port))
+        log.debug('connection count: {}'.format(len(self.server_list)))
+
+    def kill_all(self):
+        for port in self.server_list.keys():
+            self.delete_proxy(port)
