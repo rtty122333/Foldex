@@ -62,7 +62,7 @@ def request_connect(token, vm_id):
 
         res[vm_id]['rdp_ip'] = _local_ip
         res[vm_id]['rdp_port'] = localport
-        res[vm_id]['policy'] = 0 # 默认不启用驱动器重定向
+        res[vm_id]['policy'] = 1 # 默认启用驱动器重定向
         log.debug('local ip: {}, local port: {}'.format(_local_ip, localport))
         _connections[vm_id] = localport
         return res
