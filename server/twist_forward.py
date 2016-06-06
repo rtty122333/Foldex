@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import socket
 from twisted.protocols.portforward import ProxyFactory
 from twisted.internet.protocol import Protocol,Factory
@@ -34,7 +36,7 @@ class Proxy():
             self.endpoint = TCP4ServerEndpoint(reactor, self.tmpport)
             self.endpoint.listen(self.new_proxy)
         else:
-            log.error("Cannot find free port")
+            raise IOError,("Cannot find free port")
 
     def getport(self):
         return self.tmpport
