@@ -3,7 +3,7 @@
 import logging
 import session
 import user_monitor
-import port_forward
+import twist_forward
 
 from oslo_config import cfg
 
@@ -23,7 +23,7 @@ CONF.register_group(opt_server_group)
 CONF.register_opts(server_opts, opt_server_group)
 
 _monitor = None
-_proxy = port_forward.ServerProxy()
+_proxy = twist_forward.ForwardInst()
 
 _local_ip = CONF.server.local_ip
 
@@ -58,7 +58,7 @@ def request_connect(token, vm_id):
         ip = vm_info['floating_ips'][0]
         log.debug('vm ip: {}'.format(ip))
 
-        localport = _proxy.add_proxy(ip, 3389)
+        localport = _proxy.addProxy(ip, 3389)
 
         res[vm_id]['rdp_ip'] = _local_ip
         res[vm_id]['rdp_port'] = localport
@@ -78,7 +78,7 @@ def disconnect_user(user, vm_id):
     # 一次是响应前端请求，一次是断开之后响应客户端请求
     log.debug('disconnecting vm: {}'.format(vm_id))
     localport = _connections[vm_id]
-    _proxy.delete_proxy(localport)
+    _proxy.deleteProxy(localport)
     _monitor.update_connection(user, vm=None)
     _monitor.notify(user)
     return {'status': 'OK'}
@@ -121,7 +121,3 @@ def init_user(token, from_ip):
 def user_status():
     status = [{'user': t[0], 'vm': t[1]} for t in _monitor.status()]
     return status
-
-
-def kill_all_proxy():
-    _proxy.kill_all()
