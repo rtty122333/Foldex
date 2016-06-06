@@ -2,8 +2,9 @@
 
 import logging
 import re
-import time
+import requests
 import subprocess
+import time
 
 import openstack
 
@@ -12,18 +13,23 @@ from openstack import connection
 
 log = logging.getLogger(__name__)
 
-opt_os_group = cfg.OptGroup(name='os',
-                            title='Openstack related options')
-os_opts = [
-    cfg.StrOpt('admin_user', default='admin',
-               help=('OpenStack admin usser')),
-    cfg.StrOpt('admin_pass', default='123456',
-               help=('OpenStack admin password')),
+opt_ec_group = cfg.OptGroup(name='evercloud',
+                            title='Evercloud related options')
+ec_opts = [
+    cfg.StrOpt('host', default='localhost',
+               help=('Evercloud api host')),
+    cfg.IntOpt('port', default=8081,
+               help=('Evercloud api port')),
 ]
 
 CONF = cfg.CONF
-CONF.register_group(opt_os_group)
-CONF.register_opts(os_opts, opt_os_group)
+CONF.register_group(opt_ec_group)
+CONF.register_opts(ec_opts, opt_ec_group)
+
+
+class dict2obj(object):
+    def __init__(self, dictobj):
+        self.__dict__.update(dictobj)
 
 
 class AuthenticationFailure(RuntimeError):
@@ -52,8 +58,6 @@ class Session(object):
     status_check_interval = 0.5
     # 等待状态超时时间
     status_wait_timeout = 10
-    # spice 端口号匹配样式
-    spice_port_pattern = re.compile(r'-spice port=(?P<port>\d+),')
 
     token_map = {}
 
@@ -70,23 +74,27 @@ class Session(object):
         cls.token_map[session.token] = session
 
 
-    def __init__(self, username, password, project=None):
+    def __init__(self, username, password):
         """使用用户名和密码创建会话。
 
-        默认每个用户拥有独立的同名项目，也可以指定项目名称。
         自动进行身份验证，验证失败时抛出异常。
         """
-        self.conn = connection.Connection(auth_url="http://localhost:5000/v3",
-                project_name=username if project is None else project,
-                username=username,
-                password=password,
-                user_domain_id='Default',
-                project_domain_id='Default')
-        try:
-            self.token = self.conn.authorize()
+        auth_url = 'http://{}:{}/login'.format(CONF.evercloud.host, CONF.evercloud.port)
+        self.client = requests.session()
+        self.client.get(auth_url, verify = False) 
+        csrftoken = client.cookies['csrftoken']
+        login_data = {
+            'username': username,
+            'password': password,
+            'csrfmiddlewaretoken': csrftoken,
+            'next': '/'
+        }
+        login_return = client.post(auth_url, data=login_data, headers={ 'Referer' = auth_url })
+        if login_return.status_code == 200:
+            self.token = csrftoken
             self.username = username
             Session.register(self)
-        except openstack.exceptions.HttpException:
+        else:
             raise AuthenticationFailure(username)
 
     def get_vms(self):
@@ -94,23 +102,19 @@ class Session(object):
 
         返回每个VM的id，状态和浮动ip。
         """
-        def get_floating_ips(networks):
-            """从网络信息中提取浮动ip。"""
-            result = []
-            for name in networks:
-                for address in networks[name]:
-                    if address['OS-EXT-IPS:type'] == 'floating':
-                        result.append(address['addr'])
-            return result
-
-
-        instances = self.conn.compute.servers() # instances 是 generator
+        instances = self.client.get("http://{}:{}/api/instances/vdi/".format(CONF.evercloud.host, CONF.evercloud.port))
         info = {}
-        for vm in instances:
-            info[vm.id] = {
-                u'name': vm.name,
-                u'status': vm.status,
-                u'floating_ips': get_floating_ips(vm.addresses),
+        for vmid in instances:
+            vm = instances[vmid]
+            vm = dict2obj(vm)
+            info[vm.vm_uuid] = {
+                'internal_id': vmid,
+                'name':        vm.name,
+                'status':      vm.vm_status,
+                'public_ip':   vm.vm_public_ip,
+                'private_ip':  vm.vm_private_ip,
+                'host':        vm.vm_host,
+                'policy':      vm.policy_device
             }
         return info
 
@@ -126,10 +130,10 @@ class Session(object):
         now = time.time()
         deadline = now + timeout
         while now < deadline:
-            vm = self.conn.compute.get_server(vm_id)
-            if vm.status == status:
+            vm = self.get_vms()[vm_id]
+            if vm['status'] == status:
                 break
-            if vm.status == 'ERROR':
+            if vm['status'] == 'ERROR':
                 raise VMError('VM is in error state.')
             time.sleep(self.status_check_interval)
             now = time.time()
@@ -142,27 +146,21 @@ class Session(object):
         返回时VM已启动，或因错误无法启动，或操作超时。
         后两者抛出VMError异常。
         """
-
-        def get_spice_port(vm_id):
-            ps = subprocess.Popen(['ps', '-ef'], stdout=subprocess.PIPE)
-            qemu = subprocess.Popen(["grep", vm_id], stdin=ps.stdout, stdout=subprocess.PIPE)
-            out = qemu.communicate()[0]
-            m = self.spice_port_pattern.search(out)
-            return m.group('port') if m else ''
-
-        session = self.conn.session
-        vm = self.conn.compute.get_server(vm_id)
-        if vm.status == 'SHUTOFF': # 只在关机状态下执行
+        vm = self.get_vms()[vm_id]
+        if vm['status'] == 'SHUTOFF': # 只在关机状态下执行
             log.info('Starting VM {}'.format(vm_id))
+            # TODO: adapt to evercloud
             body = {'os-start': ''}
             vm.action(session, body)
+
             self.wait_for_status(vm, 'ACTIVE', self.status_wait_timeout)
             log.info('VM {} powered on'.format(vm_id))
 
         info = {
             vm_id: {
                 'status': 'ACTIVE',
-                'spice_port': get_spice_port(vm.id)
+                'vnc_port': 123, # TODO
+                'spice_port': 123+1 # TODO
             }
         }
         return info
@@ -173,42 +171,13 @@ class Session(object):
         返回时VM已关闭，或因错误无法关闭，或操作超时。
         后两者抛出VMError异常。
         """
-        session = self.conn.session
-        vm = self.conn.compute.get_server(vm_id)
-        if vm.status == 'ACTIVE': # 只在开机状态下执行
+        vm = self.get_vms()[vm_id]
+        if vm['status'] == 'ACTIVE': # 只在开机状态下执行
             log.info('Shuting down VM {}'.format(vm_id))
+            # TODO: adapt to evercloud
             body = {'os-stop': ''}
             vm.action(session, body)
+
             self.wait_for_status(vm, 'SHUTOFF', self.status_wait_timeout)
             log.info('VM {} powered off'.format(vm_id))
-
-
-class AdminSession(Session):
-    """管理员会话类。
-
-    为了能够获得相关信息，管理员需要在每个用户的项目中都拥有管理员权限。
-    """
-
-    def __init__(self, project):
-        admin_user = CONF.os.admin_user
-        admin_pass = CONF.os.admin_pass
-        super(AdminSession, self).__init__(admin_user, admin_pass, project=project)
-
-    def get_vm_host(self, vm_id):
-        """获取VM所在服务器的名称和ip。"""
-        vm = self.conn.compute.get_server(vm_id)
-        host_name = vm['OS-EXT-SRV-ATTR:hypervisor_hostname']
-        hypervisors = self.conn.compute.hypervisors()
-        host = [hv for hv in hypervisors if hv.hypervisor_hostname == host_name][0]
-        host = self.conn.compute.get_hypervisor(host.id)
-        return host_name, host.host_ip
-
-    def get_vms(self):
-        """获取项目中的VM信息，包含VM所在服务器的名称和ip。"""
-        vms = super(AdminSession, self).get_vms()
-        for id in vms:
-            hostname, host_ip = self.get_vm_host(id)
-            vms[id][u'host_name'] = hostname
-            vms[id][u'spice_ip'] = host_ip
-        return vms
 

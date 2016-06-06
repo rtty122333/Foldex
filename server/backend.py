@@ -37,8 +37,7 @@ def login(username, password):
     log.info('User {} logging in'.format(username))
     try:
         user = session.Session(username, password)
-        admin = session.AdminSession(username)
-        vms = admin.get_vms()
+        vms = user.get_vms()
         info = {
             'vms': vms,
             'token': user.token
@@ -55,14 +54,14 @@ def request_connect(token, vm_id):
         res = user.start_vm(vm_id)
 
         vm_info = user.get_vms()[vm_id]
-        ip = vm_info['floating_ips'][0]
+        ip = vm_info['public_ip']
         log.debug('vm ip: {}'.format(ip))
 
         localport = _proxy.add_proxy(ip, 3389)
 
         res[vm_id]['rdp_ip'] = _local_ip
         res[vm_id]['rdp_port'] = localport
-        res[vm_id]['policy'] = 1 # 默认启用驱动器重定向
+        res[vm_id]['policy'] = vm_info['policy']
         log.debug('local ip: {}, local port: {}'.format(_local_ip, localport))
         _connections[vm_id] = localport
         return res
