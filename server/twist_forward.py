@@ -29,9 +29,12 @@ class Proxy():
 
     def __init__(self, dest_ip, dest_port, local_ip=''):
         self.tmpport = findFreePort()
-        self.new_proxy = ProxyFactory(dest_ip, dest_port)
-        self.endpoint = TCP4ServerEndpoint(reactor, self.tmpport)
-        self.endpoint.listen(self.new_proxy)
+        if self.tmpport != None:
+            self.new_proxy = ProxyFactory(dest_ip, dest_port)
+            self.endpoint = TCP4ServerEndpoint(reactor, self.tmpport)
+            self.endpoint.listen(self.new_proxy)
+        else:
+            log.error("Cannot find free port")
 
     def getport(self):
         return self.tmpport
