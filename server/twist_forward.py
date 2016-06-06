@@ -47,10 +47,11 @@ class ForwardInst(Singleton):
         self.forwardlist[self.tmpport] = self.proxyinst
         return self.tmpport
 
-    def deleteProxy(self, locolport):
+    def deleteProxy(self, localport):
         if self.forwardlist.has_key(localport):
             del forwardlist[localport]
         else:
+            #此处应添加异常处理，删除不存在的端口代理
             pass
         
 '''
