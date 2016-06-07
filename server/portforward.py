@@ -58,7 +58,7 @@ class ProxyServer(Proxy):
         # Don't read anything from the connecting client until we have
         # somewhere to send it to.
         self.transport.pauseProducing()
-        self.factory.proxy = self
+        self.factory.proxy.append(self)
 
         client = self.clientProtocolFactory()
         client.setServer(self)
@@ -77,9 +77,9 @@ class ProxyFactory(protocol.Factory):
     def __init__(self, host, port):
         self.host = host
         self.port = port
-        self.proxy = None # ProxyFactory <-> ProxyServer 1 to 1 mapping
+        self.proxy = [] # ProxyFactory <-> ProxyServer 1 to 1 mapping
 
     def stop(self):
-        if self.proxy:
-            self.proxy.conn.disconnect()
-            self.proxy.transport.loseConnection()
+        if item in self.proxy:
+            item.conn.disconnect()
+            item.transport.loseConnection()
