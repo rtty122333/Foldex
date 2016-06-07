@@ -66,7 +66,7 @@ class ProxyServer(Proxy):
         if self.reactor is None:
             from twisted.internet import reactor
             self.reactor = reactor
-        self.reactor.connectTCP(self.factory.host, self.factory.port, client)
+        self.conn = self.reactor.connectTCP(self.factory.host, self.factory.port, client)
 
 
 class ProxyFactory(protocol.Factory):
@@ -81,4 +81,5 @@ class ProxyFactory(protocol.Factory):
 
     def stop(self):
         if self.proxy:
+            self.proxy.conn.disconnect()
             self.proxy.transport.loseConnection()
