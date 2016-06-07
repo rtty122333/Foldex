@@ -47,14 +47,16 @@ class ForwardInst(Singleton):
         self.forwardlist = {}
 
     def addProxy(self, dest_ip, dest_port, local_ip=''):
-        self.proxyinst = Proxy(dest_ip, dest_port, local_ip)
-        self.tmpport = self.proxyinst.getport()
-        self.forwardlist[self.tmpport] = self.proxyinst
-        return self.tmpport
+        try:
+            self.proxyinst = Proxy(dest_ip, dest_port, local_ip)
+            self.tmpport = self.proxyinst.getport()
+            self.forwardlist[self.tmpport] = self.proxyinst
+        finally:
+            return self.tmpport
 
     def deleteProxy(self, localport):
         if self.forwardlist.has_key(localport):
-            del forwardlist[localport]
+            del self.forwardlist[localport]
         else:
             #此处应添加异常处理，删除不存在的端口代理
             pass
