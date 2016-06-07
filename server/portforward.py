@@ -80,6 +80,6 @@ class ProxyFactory(protocol.Factory):
         self.proxy = [] # ProxyFactory <-> ProxyServer 1 to 1 mapping
 
     def stop(self):
-        if item in self.proxy:
+        for item in self.proxy:
             item.conn.disconnect()
             item.transport.loseConnection()
