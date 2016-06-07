@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 
+import logging
 import socket
-from twisted.protocols.portforward import ProxyFactory
+from portforward import ProxyFactory
 from twisted.internet.protocol import Protocol,Factory
 from twisted.internet import reactor
 from twisted.internet.endpoints import TCP4ServerEndpoint
+
+
+log = logging.getLogger(__name__)
+
 
 def findFreePort():
     """
@@ -38,6 +43,9 @@ class Proxy():
         else:
             raise IOError,("Cannot find free port")
 
+    def stop(self):
+        self.new_proxy.stop()
+
     def getport(self):
         return self.tmpport
 
@@ -50,13 +58,18 @@ class ForwardInst(Singleton):
         self.proxyinst = Proxy(dest_ip, dest_port, local_ip)
         self.tmpport = self.proxyinst.getport()
         self.forwardlist[self.tmpport] = self.proxyinst
+        log.debug('proxy to {}:{} from {}:{}'.format(dest_ip, dest_port, local_ip, self.tmpport))
+        log.debug('connection count: {}'.format(len(self.forwardlist)))
         return self.tmpport
 
     def deleteProxy(self, localport):
-        if self.forwardlist.has_key(localport):
-            del self.forwardlist[localport]
+        proxy = self.forwardlist.pop(localport, None)
+        if proxy:
+            proxy.stop()
+            log.debug('proxy on {} removed'.format(localport))
+            log.debug('connection count: {}'.format(len(self.forwardlist)))
         else:
-            #此处应添加异常处理，删除不存在的端口代理
+            # 可能在同一个 localport 上被调用多次，不作处理
             pass
         
 '''
