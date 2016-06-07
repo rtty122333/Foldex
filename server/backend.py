@@ -72,6 +72,8 @@ def request_connect(token, vm_id):
     except session.VMError as e:
         log.error('User {} attempt to connect to {} but failed: {}'.format(user.username, vm_id, e))
         raise
+    except IOError as e:
+        log.error('Cannot find free port: {}'.format(e))
 
 def disconnect_user(user, vm_id):
     # 如果是前端请求断开连接，次函数会执行两次，

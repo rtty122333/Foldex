@@ -47,12 +47,10 @@ class ForwardInst(Singleton):
         self.forwardlist = {}
 
     def addProxy(self, dest_ip, dest_port, local_ip=''):
-        try:
-            self.proxyinst = Proxy(dest_ip, dest_port, local_ip)
-            self.tmpport = self.proxyinst.getport()
-            self.forwardlist[self.tmpport] = self.proxyinst
-        finally:
-            return self.tmpport
+        self.proxyinst = Proxy(dest_ip, dest_port, local_ip)
+        self.tmpport = self.proxyinst.getport()
+        self.forwardlist[self.tmpport] = self.proxyinst
+        return self.tmpport
 
     def deleteProxy(self, localport):
         if self.forwardlist.has_key(localport):
