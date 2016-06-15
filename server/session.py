@@ -121,7 +121,7 @@ class Session(object):
                 'host':        vm.vm_host,
                 'policy':      vm.policy_device
             }
-            _vm_ips[vm.id] = info[vm.id][u'floating_ips'][0] if len(info[vm.id][u'floating_ips']) > 0 else None
+            _vm_ips[vm.id] = vm.vm_public_ip
         return info
 
     def wait_for_status(self, vm_id, status, timeout):
