@@ -60,7 +60,7 @@ class Handler(object):
             #vm未开启时需要通知nova开启
             return 200, res
         except session.VMError as e:
-            return 500, {'err': e}
+            return 500, {'err': str(e)}
 
     def disconnect_vm(self, msgObj):
         log.debug("in disconnect_vm handler")
