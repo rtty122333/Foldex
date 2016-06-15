@@ -5,6 +5,8 @@ import logging
 import time
 import threading
 
+from . import session
+
 from collections import defaultdict
 
 
@@ -30,10 +32,10 @@ class UserMonitor(object):
     def __del__(self):
         self.stop()
 
-    def update_connection(self, user, ip='nochange', vm=None):
+    def update_connection(self, user, client_ip='nochange', vm=None):
         rec = self.memo[user]
-        if ip != 'nochange':
-            rec.ip = ip
+        if client_ip != 'nochange':
+            rec.client_ip = client_ip
         rec.vm_changed = rec.vm != vm
         rec.vm = vm
         rec.online = True
@@ -63,7 +65,7 @@ class UserMonitor(object):
         rec = self.memo[user]
         is_online, vm = rec.online, rec.vm
         log.debug('======================= user {} status changed. [{}][{}]'.format(user, 'ONLINE' if is_online else 'OFFLINE', vm))
-        self.wsf.broadcast(json.dumps({ 'action': 'notify', 'user': user, 'online': is_online, 'vm': vm }))
+        self.wsf.broadcast(json.dumps({ 'action': 'notify', 'user': user, 'online': is_online, 'vm': vm, 'ip_addr': session.lookup_vm_ip(vm)}))
 
     def start(self):
         self.terminated = False

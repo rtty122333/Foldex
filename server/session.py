@@ -51,6 +51,9 @@ class VMError(RuntimeError):
         super(VMError, self).__init__(msg)
 
 
+_vm_ips = {}
+
+
 class Session(object):
     """用户会话类，以用户的身份执行操作。"""
 
@@ -118,6 +121,7 @@ class Session(object):
                 'host':        vm.vm_host,
                 'policy':      vm.policy_device
             }
+            _vm_ips[vm.id] = info[vm.id][u'floating_ips'][0] if len(info[vm.id][u'floating_ips']) > 0 else None
         return info
 
     def wait_for_status(self, vm_id, status, timeout):
@@ -192,3 +196,6 @@ class Session(object):
                 log.warning(errmsg)
                 raise VMError(errmsg)
 
+
+def lookup_vm_ip(vm_id):
+    return _vm_ips.get(vm_id, None)

@@ -8,19 +8,13 @@
 
         sudo pip install openstacksdk
 
-- 安装 `mysql` 模块
+- 安装 `autobahn` 库（`twisted` 版）
 
-    在 `http://www.codegood.com/downloads` 下载对应版本编译版本并安装
-
-- 建立数据库
-
-    在 `mysql` 命令行模式下执行 `source server.sql`（注意正确路径）加入数据信息
+        sudo pip install autobahn[twisted]
 
 ### TODO:
 
 - 用部署工具自动配置环境
-
-- 自动配置数据库
 
 ## 程序配置
 
