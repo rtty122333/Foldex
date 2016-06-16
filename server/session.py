@@ -1,15 +1,11 @@
 # -*- coding: utf-8 -*-
 
 import logging
-import re
 import requests
 import subprocess
 import time
 
-import openstack
-
 from oslo_config import cfg
-from openstack import connection
 
 log = logging.getLogger(__name__)
 
@@ -121,7 +117,7 @@ class Session(object):
                 'host':        vm.vm_host,
                 'policy':      vm.policy_device
             }
-            _vm_ips[vm.id] = vm.vm_public_ip
+            _vm_ips[vm.id] = vm.vm_private_ip
         return info
 
     def wait_for_status(self, vm_id, status, timeout):
