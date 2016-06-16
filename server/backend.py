@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 
+import json
 import logging
-import session
-import user_monitor
-import twist_forward
+
+from . import session, user_monitor, twist_forward
 
 from oslo_config import cfg
+from twisted.internet import threads, reactor
 
 
 log = logging.getLogger(__name__)
@@ -48,24 +49,30 @@ def login(username, password):
         log.error(e)
         raise
 
-def request_connect(token, vm_id):
+def _request_connect_cb(msg, user, vm_id, request):
+    res = msg['res']
+    vm_info = user.get_vms()[vm_id]
+    ip = vm_info['floating_ips'][0]
+    log.debug('vm ip: {}'.format(ip))
+
+    localport = _proxy.addProxy(ip, 3389)
+
+    res[vm_id]['rdp_ip'] = _local_ip
+    res[vm_id]['rdp_port'] = localport
+    res[vm_id]['policy'] = 1 # 默认启用驱动器重定向
+    log.debug('local ip: {}, local port: {}'.format(_local_ip, localport))
+    _connections[vm_id] = localport
+
+    request.setResponseCode(msg['code'])
+    request.write(json.dumps(res))
+    request.finish()
+
+def request_connect(token, vm_id, request):
     try:
         user = session.Session.get(token)
         log.info('User {} attempt to connect to VM {}'.format(user.username, vm_id))
-        res = user.start_vm(vm_id)
-
-        vm_info = user.get_vms()[vm_id]
-        ip = vm_info['floating_ips'][0]
-        log.debug('vm ip: {}'.format(ip))
-
-        localport = _proxy.addProxy(ip, 3389)
-
-        res[vm_id]['rdp_ip'] = _local_ip
-        res[vm_id]['rdp_port'] = localport
-        res[vm_id]['policy'] = 1 # 默认启用驱动器重定向
-        log.debug('local ip: {}, local port: {}'.format(_local_ip, localport))
-        _connections[vm_id] = localport
-        return res
+        d = threads.deferToThread(user.start_vm, vm_id)
+        d.addCallback(_request_connect_cb, user, vm_id, request)
     except session.InvalidTokenError as e:
         log.error(e)
         raise
