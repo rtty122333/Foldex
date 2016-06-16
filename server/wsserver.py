@@ -6,8 +6,7 @@ import logging
 from autobahn.twisted.websocket import WebSocketServerFactory, \
     WebSocketServerProtocol
 
-import backend
-import logconf
+from . import backend, logconf
 
 
 log = logging.getLogger(__name__)

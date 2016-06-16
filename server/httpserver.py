@@ -3,16 +3,15 @@
 import json
 import logging
 
-import logconf
-import requesthandler
+from . import logconf, requesthandler
 
-from twisted.web.resource import Resource
+from twisted.web import server, resource
 
 
 _handler = requesthandler.Handler()
 
 
-class VDIResource(Resource):
+class VDIResource(resource.Resource):
 
     isLeaf = True
 
@@ -25,7 +24,10 @@ class VDIResource(Resource):
         data['client_ip'] = request.getClientIP()
         action = request.postpath[0]
 
-        code, response = _handler.handle(request.method, action, data) 
-        request.setResponseCode(code)
-        return json.dumps(response)
+        code, response = _handler.handle(request, action, data) 
+        if code == -1: # Deferred
+            return server.NOT_DONE_YET
+        else:
+            request.setResponseCode(code)
+            return json.dumps(response)
 

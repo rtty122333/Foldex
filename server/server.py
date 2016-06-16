@@ -3,10 +3,7 @@
 import json
 import logging
 
-import backend
-import httpserver
-import logconf
-import wsserver
+from . import backend, httpserver, logconf, wsserver
 
 from oslo_config import cfg
 from twisted.internet import reactor

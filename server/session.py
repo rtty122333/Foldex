@@ -67,7 +67,7 @@ class Session(object):
             return session
         except KeyError:
             raise InvalidTokenError(token)
-        
+
     @classmethod
     def register(cls, session):
         cls.token_map[session.token] = session
@@ -155,22 +155,34 @@ class Session(object):
             ret = self.client.get(self.action_url, params=action)
             ret = json.loads(ret.content)
             if ret['OPERATION_STATUS'] == 1: # success
-                self.wait_for_status(vm, 'ACTIVE', self.status_wait_timeout)
-                log.info('VM {} powered on'.format(vm_id))
-
-                vm = dict2obj(self.get_vms()[vm_id])
-                info = {
-                    vm_id: {
-                        'status': 'ACTIVE',
-                        'vnc_port': vm.vnc_port,
-                        'spice_port': vm.vnc_port + 1
+                try:
+                    self.wait_for_status(vm, 'ACTIVE', self.status_wait_timeout)
+                    log.info('VM {} powered on'.format(vm_id))
+                except VMError as e:
+                    info = {
+                        'code': 500,
+                        'res': {
+                            'err': str(e)
+                        }
                     }
-                }
-                return info
+                    return info
             else:
                 errmsg = 'Failed to start vm {}'.format(vm_id)
                 log.warning(errmsg)
                 raise VMError(errmsg)
+
+        vm = dict2obj(self.get_vms()[vm_id])
+        info = {
+            'code': 200,
+            'res': {
+                vm_id: {
+                    'status': 'ACTIVE',
+                    'vnc_port': vm.vnc_port,
+                    'spice_port': vm.vnc_port + 1
+                }
+            }
+        }
+        return info
 
     def stop_vm(self, vm_id):
         """关闭用户的VM。
