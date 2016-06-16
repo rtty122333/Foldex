@@ -91,7 +91,7 @@ class Session(object):
             'csrfmiddlewaretoken': csrftoken,
             'next': '/'
         }
-        login_return = client.post(self.auth_url, data=login_data, headers={ 'Referer' = self.auth_url })
+        login_return = client.post(self.auth_url, data=login_data, headers={ 'Referer': self.auth_url })
         if login_return.status_code == 200:
             self.token = csrftoken
             self.username = username
