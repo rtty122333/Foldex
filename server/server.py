@@ -47,6 +47,7 @@ class Server(object):
             root.putChild('v1', httpserver.VDIResource())
             site = Site(root)
 
+            reactor.suggestThreadPoolSize(30)
             reactor.listenTCP(port, site)
 
             log.debug("Serving HTTP/WS at port {}".format(port))
