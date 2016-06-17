@@ -106,6 +106,9 @@ class Session(object):
         返回每个VM的id，状态和浮动ip。
         """
         instances = self.client.get(self.query_url)
+        # (workaround) 登录 api 无论成功与否都返回 200，只能在这里增加判断
+        if instances.status_code != 200:
+            raise AuthenticationFailure(self.username)
         instances = json.loads(instances.content)
         info = {}
         for vmid in instances:

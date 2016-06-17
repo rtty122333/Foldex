@@ -30,6 +30,7 @@ class Handler(object):
             log.error(e)
             errstr = "error processing {} action: {}".format(method, action)
             log.error(errstr)
+            #raise # DEBUG
             return 400, {'err': errstr}
 
     def login(self, msgObj, request):
@@ -48,6 +49,7 @@ class Handler(object):
         except Exception as e:
             log.error(e)
             log.error('unidentified error occurred in login handler')
+            #raise # DEBUG
             return 500, {'err':'sth wrong when handle you msg'}
 
     # 未使用
