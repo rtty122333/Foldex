@@ -23,6 +23,8 @@ CONF = cfg.CONF
 CONF.register_group(opt_server_group)
 CONF.register_opts(server_opts, opt_server_group)
 
+cfg.CONF(default_config_files=['/etc/foldex/foldex.conf'])
+
 _monitor = None
 _proxy = twist_forward.ForwardInst()
 
