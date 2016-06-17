@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import json
 import logging
 import requests
 import subprocess
@@ -84,14 +85,14 @@ class Session(object):
         self.action_url = '/'.join((self.host, 'api', 'instahces', 'vdi_action'))
         self.client = requests.session()
         self.client.get(self.auth_url, verify = False) 
-        csrftoken = client.cookies['csrftoken']
+        csrftoken = self.client.cookies['csrftoken']
         login_data = {
             'username': username,
             'password': password,
             'csrfmiddlewaretoken': csrftoken,
             'next': '/'
         }
-        login_return = client.post(self.auth_url, data=login_data, headers={ 'Referer': self.auth_url })
+        login_return = self.client.post(self.auth_url, data=login_data, headers={ 'Referer': self.auth_url })
         if login_return.status_code == 200:
             self.token = csrftoken
             self.username = username
@@ -105,19 +106,21 @@ class Session(object):
         返回每个VM的id，状态和浮动ip。
         """
         instances = self.client.get(self.query_url)
+        instances = json.loads(instances.content)
         info = {}
         for vmid in instances:
             vm = dict2obj(instances[vmid])
             info[vm.vm_uuid] = {
                 'internal_id': vmid,
-                'name':        vm.name,
+                'name':        vm.vm_name,
                 'status':      vm.vm_status,
                 'public_ip':   vm.vm_public_ip,
                 'private_ip':  vm.vm_private_ip,
                 'host':        vm.vm_host,
-                'policy':      vm.policy_device
+                'policy':      vm.policy_device,
+                'vnc_port':    vm.vnc_port
             }
-            _vm_ips[vm.id] = vm.vm_private_ip
+            _vm_ips[vm.vm_uuid] = vm.vm_private_ip
         return info
 
     def wait_for_status(self, vm_id, status, timeout):
