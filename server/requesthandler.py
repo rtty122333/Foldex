@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import logging
-import backend
-import session
+
+from . import backend, session
 
 
 log = logging.getLogger(__name__)
@@ -21,16 +21,18 @@ class Handler(object):
             "vdstatus": self.user_status
         }
 
-    def handle(self, method, action, msgObj):
+    def handle(self, request, action, msgObj):
+        method = request.method
         log.debug('[{}] action: {}, msg: {}'.format(method, action, msgObj))
         try:
-            return self.handlers[method].get(action)(msgObj)
+            return self.handlers[method].get(action)(msgObj, request)
         except Exception as e:
             log.error(e)
-            log.error("unknown {} action: {}".format(method, action))
-            return 400, {'err':'unknown {} action'.format(method)}
+            errstr = "error processing {} action: {}".format(method, action)
+            log.error(errstr)
+            return 400, {'err': errstr}
 
-    def login(self, msgObj):
+    def login(self, msgObj, request):
         log.debug('in login handler')
         try:
             # 请求keystone获得身份认证结果
@@ -49,25 +51,24 @@ class Handler(object):
             return 500, {'err':'sth wrong when handle you msg'}
 
     # 未使用
-    def logout(self, msgObj):
+    def logout(self, msgObj, request):
         log.debug("in logout handler")
         return 200, msgObj
 
-    def connect_vm(self, msgObj):
+    def connect_vm(self, msgObj, request):
         log.debug('in connect_vm handler')
         try:
-            res = backend.request_connect(msgObj[u'token'], msgObj[u'vm_id'])
-            #vm未开启时需要通知nova开启
-            return 200, res
+            backend.request_connect(msgObj[u'token'], msgObj[u'vm_id'], request)
+            return -1, None # 推迟到 request_connect 函数进行回复
         except session.VMError as e:
             return 500, {'err': str(e)}
 
-    def disconnect_vm(self, msgObj):
+    def disconnect_vm(self, msgObj, request):
         log.debug("in disconnect_vm handler")
         res = backend.disconnect(msgObj[u'token'], msgObj[u'vm_id'])
         return 200, res
 
-    def heartbeat(self, msgObj):
+    def heartbeat(self, msgObj, request):
         log.debug("in heartbeat handler")
         if 'vm_id' in msgObj:
             backend.heartbeat(msgObj[u'token'], msgObj[u'client_ip'], msgObj[u'vm_id'])
@@ -76,5 +77,5 @@ class Handler(object):
 
         return 204, None
 
-    def user_status(self, msg):
+    def user_status(self, msg, request):
         return 200, backend.user_status()

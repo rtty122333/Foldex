@@ -64,7 +64,7 @@ class Session(object):
             return session
         except KeyError:
             raise InvalidTokenError(token)
-        
+
     @classmethod
     def register(cls, session):
         cls.token_map[session.token] = session
@@ -156,13 +156,25 @@ class Session(object):
             log.info('Starting VM {}'.format(vm_id))
             body = {'os-start': ''}
             vm.action(session, body)
-            self.wait_for_status(vm, 'ACTIVE', self.status_wait_timeout)
-            log.info('VM {} powered on'.format(vm_id))
+            try:
+                self.wait_for_status(vm, 'ACTIVE', self.status_wait_timeout)
+                log.info('VM {} powered on'.format(vm_id))
+            except VMError as e:
+                info = {
+                    'code': 500,
+                    'res': {
+                        'err': str(e)
+                    }
+                }
+                return info
 
         info = {
-            vm_id: {
-                'status': 'ACTIVE',
-                'spice_port': get_spice_port(vm.id)
+            'code': 200,
+            'res': {
+                vm_id: {
+                    'status': 'ACTIVE',
+                    'spice_port': get_spice_port(vm.id)
+                }
             }
         }
         return info
