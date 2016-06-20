@@ -44,7 +44,7 @@ class Proxy():
             raise IOError,("Cannot find free port")
 
     def stop(self):
-        self.new_proxy.stop()
+        self.new_proxy.doStop()
 
     def getport(self):
         return self.tmpport
