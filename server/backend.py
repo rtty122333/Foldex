@@ -130,5 +130,5 @@ def init_user(token, from_ip):
 
 
 def user_status():
-    status = [{'user': t[0], 'vm': t[1]} for t in _monitor.status()]
+    status = [{'user': t[0], 'vm': t[1], 'ip_addr': t[2]} for t in _monitor.status()]
     return status
