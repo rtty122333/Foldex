@@ -8,6 +8,7 @@ from . import logconf, requesthandler
 from twisted.web import server, resource
 
 
+log = logging.getLogger(__name__)
 _handler = requesthandler.Handler()
 
 

@@ -20,6 +20,7 @@ class UserMonitor(object):
             self.last_update = time.time()
             self.online = False
             self.vm = None
+            self.vm_ip = None
 
     def __init__(self, wsf, timeout=30, interval=5):
         self.memo = defaultdict(self.Record)
@@ -37,6 +38,8 @@ class UserMonitor(object):
         if client_ip != 'nochange':
             rec.client_ip = client_ip
         rec.vm_changed = rec.vm != vm
+        if rec.vm_changed and vm:
+            rec.vm_ip = session.lookup_vm_ip(vm)
         rec.vm = vm
         rec.online = True
         rec.last_update = time.time()
@@ -45,7 +48,7 @@ class UserMonitor(object):
         for username in self.memo:
             user = self.memo[username]
             if user.online:
-                yield username, user.vm
+                yield username, user.vm, user.vm_ip
 
     def refresh_status(self):
         while not self.terminated:
@@ -63,9 +66,9 @@ class UserMonitor(object):
 
     def notify(self, user):
         rec = self.memo[user]
-        is_online, vm = rec.online, rec.vm
+        is_online, vm, vm_ip = rec.online, rec.vm, rec.vm_ip
         log.debug('======================= user {} status changed. [{}][{}]'.format(user, 'ONLINE' if is_online else 'OFFLINE', vm))
-        self.wsf.broadcast(json.dumps({ 'action': 'notify', 'user': user, 'online': is_online, 'vm': vm, 'ip_addr': session.lookup_vm_ip(vm)}))
+        self.wsf.broadcast(json.dumps({ 'action': 'notify', 'user': user, 'online': is_online, 'vm': vm, 'ip_addr': vm_ip}))
 
     def start(self):
         self.terminated = False
