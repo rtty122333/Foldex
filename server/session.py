@@ -114,6 +114,7 @@ class Session(object):
                 u'name': vm.name,
                 u'status': vm.status,
                 u'floating_ips': get_floating_ips(vm.addresses),
+                u'os': 'win'
             }
             _vm_ips[vm.id] = info[vm.id][u'floating_ips'][0] if len(info[vm.id][u'floating_ips']) > 0 else None
         return info
