@@ -121,7 +121,8 @@ class Session(object):
                 'private_ip':  vm.vm_private_ip,
                 'host':        vm.vm_host,
                 'policy':      vm.policy_device,
-                'vnc_port':    vm.vnc_port
+                'vnc_port':    vm.vnc_port,
+                'os':          'win'
             }
             _vm_ips[vm.vm_uuid] = vm.vm_private_ip
         return info
