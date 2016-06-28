@@ -7,6 +7,10 @@
 - 安装 `autobahn` 库（`twisted` 版）
 
         sudo pip install autobahn[twisted]
+        
+- 安装 `service_identity` 库
+
+        sudo pip install service_identity
 
 ### TODO:
 
