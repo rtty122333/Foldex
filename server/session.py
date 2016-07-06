@@ -124,7 +124,7 @@ class Session(object):
                 'vnc_port':    vm.vnc_port,
                 'os':          'win'
             }
-            _vm_ips[vm.vm_uuid] = vm.vm_private_ip
+            _vm_ips[vm.vm_uuid] = vm.vm_public_ip
         return info
 
     def wait_for_status(self, vm_id, status, timeout):
