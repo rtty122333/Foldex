@@ -52,17 +52,20 @@ def login(username, password):
 
 def _request_connect_cb(msg, user, vm_id, request):
     res = msg['res']
-    vm_info = user.get_vms()[vm_id]
-    ip = vm_info['public_ip']
-    log.debug('vm ip: {}'.format(ip))
+    if 'err' not in res:
+        vm_info = user.get_vms()[vm_id]
+        ip = vm_info['public_ip']
+        log.debug('vm ip: {}'.format(ip))
 
-    localport = _proxy.addProxy(ip, 3389)
+        localport = _proxy.addProxy(ip, 3389)
 
-    res[vm_id]['rdp_ip'] = _local_ip
-    res[vm_id]['rdp_port'] = localport
-    res[vm_id]['policy'] = vm_info['policy']
-    log.debug('local ip: {}, local port: {}'.format(_local_ip, localport))
-    _connections[vm_id] = localport
+        res[vm_id]['rdp_ip'] = _local_ip
+        res[vm_id]['rdp_port'] = localport
+        res[vm_id]['policy'] = vm_info['policy']
+        log.debug('local ip: {}, local port: {}'.format(_local_ip, localport))
+        _connections[vm_id] = localport
+    else:
+        log.error(res['err'])
 
     request.setResponseCode(msg['code'])
     request.write(json.dumps(res))

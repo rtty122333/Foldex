@@ -82,7 +82,7 @@ class Session(object):
         self.host = 'http://{}:{}'.format(CONF.evercloud.host, CONF.evercloud.port)
         self.auth_url = '/'.join((self.host, 'login'))
         self.query_url = '/'.join((self.host, 'api', 'instances', 'vdi'))
-        self.action_url = '/'.join((self.host, 'api', 'instahces', 'vdi_action'))
+        self.action_url = '/'.join((self.host, 'api', 'instances', 'vdi_action'))
         self.client = requests.session()
         self.client.get(self.auth_url, verify = False) 
         csrftoken = self.client.cookies['csrftoken']
@@ -161,9 +161,17 @@ class Session(object):
             action = { 'instance': vm.internal_id, 'action': 'power_on' }
             ret = self.client.get(self.action_url, params=action)
             ret = json.loads(ret.content)
+            if ret.get('success', True) is False:
+                info = {
+                    'code': 500,
+                    'res': {
+                        'err': ret['msg']
+                    }
+                }
+                return info
             if ret['OPERATION_STATUS'] == 1: # success
                 try:
-                    self.wait_for_status(vm, 'ACTIVE', self.status_wait_timeout)
+                    self.wait_for_status(vm_id, 'ACTIVE', self.status_wait_timeout)
                     log.info('VM {} powered on'.format(vm_id))
                 except VMError as e:
                     info = {
