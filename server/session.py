@@ -84,7 +84,7 @@ class Session(object):
         self.query_url = '/'.join((self.host, 'api', 'instances', 'vdi'))
         self.action_url = '/'.join((self.host, 'api', 'instances', 'vdi_action'))
         self.client = requests.session()
-        self.client.get(self.auth_url, verify = False) 
+        self.client.get(self.auth_url, verify = False)
         csrftoken = self.client.cookies['csrftoken']
         login_data = {
             'username': username,
@@ -106,20 +106,21 @@ class Session(object):
         返回每个VM的id，状态和浮动ip。
         """
         instances = self.client.get(self.query_url)
+        print(instances.content)
         # (workaround) 登录 api 无论成功与否都返回 200，只能在这里增加判断
         if instances.status_code != 200:
             raise AuthenticationFailure(self.username)
         instances = json.loads(instances.content)
         info = {}
-        for vmid in instances:
-            vm = dict2obj(instances[vmid])
+        for vmdict in instances['vminfo']:
+            vm = dict2obj(vmdict)
             info[vm.vm_uuid] = {
-                'internal_id': vmid,
+                'internal_id': vm.vm_internalid,
                 'name':        vm.vm_name,
                 'status':      vm.vm_status,
                 'public_ip':   vm.vm_public_ip,
-                'private_ip':  vm.vm_private_ip,
-                'host':        vm.vm_host,
+                #'private_ip':  vm.vm_private_ip,
+                #'host':        vm.vm_serverip,
                 'policy':      vm.policy_device,
                 'vnc_port':    vm.vnc_port,
                 'os':          'win'
