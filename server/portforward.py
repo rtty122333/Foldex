@@ -1,5 +1,6 @@
 from twisted.internet import protocol
 from twisted.python import log
+import netns
 
 class Proxy(protocol.Protocol):
     noisy = True
@@ -66,7 +67,11 @@ class ProxyServer(Proxy):
         if self.reactor is None:
             from twisted.internet import reactor
             self.reactor = reactor
-        self.conn = self.reactor.connectTCP(self.factory.host, self.factory.port, client)
+        if True: # TODO: get the condition from server
+            self.conn = self.reactor.connectTCP(self.factory.host, self.factory.port, client)
+        else:    
+            with netns.NetNS(nsname='qrouter-b85a5562-9efc-4b01-87a1-b9d15d580f3a'):
+                self.conn = self.reactor.connectTCP(self.factory.host, self.factory.port, client)
 
 
 class ProxyFactory(protocol.Factory):

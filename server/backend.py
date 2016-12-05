@@ -3,7 +3,7 @@
 import json
 import logging
 
-from . import session, user_monitor, twist_forward
+from . import session, user_monitor, twist_forward, agentclient
 
 from oslo_config import cfg
 from twisted.internet import threads, reactor
@@ -64,6 +64,18 @@ def _request_connect_cb(msg, user, vm_id, request):
         res[vm_id]['policy'] = vm_info['policy']
         log.debug('local ip: {}, local port: {}'.format(_local_ip, localport))
         _connections[vm_id] = localport
+
+        # TODO contact client agent
+        client_ip = request.getHost()
+        ac = agentclient.AgentClient(client_ip)
+
+        enable = vm_info['policy'] & 0x01
+        result = ac.set_storage_enabled(enable)
+        log.debug('enable storage: {}, response: {}'.format(enable, result))
+
+        devs = info['enabled_devices']
+        result = ac.set_enabled_devices(devs)
+        log.debug('enable devices: {}, response: {}'.format(devs, result))
     else:
         log.error(res['err'])
 
