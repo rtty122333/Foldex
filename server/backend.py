@@ -2,8 +2,10 @@
 
 import json
 import logging
+import requests
+import traceback
 
-from . import session, user_monitor, twist_forward
+from . import session, user_monitor, twist_forward, agentclient
 
 from oslo_config import cfg
 from twisted.internet import threads, reactor
@@ -65,9 +67,27 @@ def _request_connect_cb(msg, user, vm_id, request):
     log.debug('local ip: {}, local port: {}'.format(_local_ip, localport))
     _connections[vm_id] = localport
 
+    # TODO contact client agent
+    client_ip = request.getClientIP()
+    vm_info = user.get_vms()[vm_id]
+    ac = agentclient.AgentClient(client_ip)
+
+    enable = True
+    result = ac.set_storage_enabled(enable)
+    log.debug('enable storage: {}, response: {}'.format(enable, result))
+
+    devs = ['USB\\VID_0951&PID_1666&REV_0100', 'USBSTOR\\DiskKingstonDataTraveler_3.0PMAP']
+    result = ac.enable_usb_devices(devs)
+    log.debug('enable devices: {}, response: {}'.format(devs, result))
+
+
     request.setResponseCode(msg['code'])
     request.write(json.dumps(res))
     request.finish()
+
+def _err_handler(failure):
+    failure.trap(Exception)
+    traceback.print_exc()
 
 def request_connect(token, vm_id, request):
     try:
@@ -75,6 +95,7 @@ def request_connect(token, vm_id, request):
         log.info('User {} attempt to connect to VM {}'.format(user.username, vm_id))
         d = threads.deferToThread(user.start_vm, vm_id)
         d.addCallback(_request_connect_cb, user, vm_id, request)
+        d.addErrback(_err_handler)
     except session.InvalidTokenError as e:
         log.error(e)
         raise
