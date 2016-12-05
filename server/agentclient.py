@@ -24,17 +24,17 @@ class AgentClient:
         except requests.Timeout:
             return {'state': 'error', 'description': 'timeout'}
 
-    def get_enabled_usb_device(self):
+    def get_enabled_usb_devices(self):
         try:
             r = requests.get('http://{}:{}/usb_device'.format(self.ip, self.port), timeout=5)
             return r.json()
         except requests.Timeout:
             return {'state': 'error', 'description': 'timeout'}
 
-    def enable_usb_device(self, id_list):
+    def enable_usb_devices(self, id_list):
         try:
             d = { 'update': id_list }
-            r = requests.get('http://{}:{}/usb_device'.format(self.ip, self.port), json=d, timeout=5)
+            r = requests.post('http://{}:{}/usb_device'.format(self.ip, self.port), json=d, timeout=5)
             return r.json()
         except requests.Timeout:
             return {'state': 'error', 'description': 'timeout'}

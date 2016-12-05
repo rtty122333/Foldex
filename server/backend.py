@@ -2,6 +2,8 @@
 
 import json
 import logging
+import requests
+import traceback
 
 from . import session, user_monitor, twist_forward, agentclient
 
@@ -66,15 +68,15 @@ def _request_connect_cb(msg, user, vm_id, request):
         _connections[vm_id] = localport
 
         # TODO contact client agent
-        client_ip = request.getHost()
+        client_ip = request.getClientIP()
         ac = agentclient.AgentClient(client_ip)
 
-        enable = vm_info['policy'] & 0x01
+        enable = (vm_info['policy'] & 0x01) as bool
         result = ac.set_storage_enabled(enable)
         log.debug('enable storage: {}, response: {}'.format(enable, result))
 
         devs = info['enabled_devices']
-        result = ac.set_enabled_devices(devs)
+        result = ac.enable_usb_devices(devs)
         log.debug('enable devices: {}, response: {}'.format(devs, result))
     else:
         log.error(res['err'])
@@ -83,12 +85,17 @@ def _request_connect_cb(msg, user, vm_id, request):
     request.write(json.dumps(res))
     request.finish()
 
+def _err_handler(failure):
+    failure.trap(Exception)
+    traceback.print_exc()
+
 def request_connect(token, vm_id, request):
     try:
         user = session.Session.get(token)
         log.info('User {} attempt to connect to VM {}'.format(user.username, vm_id))
         d = threads.deferToThread(user.start_vm, vm_id)
         d.addCallback(_request_connect_cb, user, vm_id, request)
+        d.addErrback(_err_handler)
     except session.InvalidTokenError as e:
         log.error(e)
         raise

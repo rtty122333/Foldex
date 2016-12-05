@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import logging
+import traceback
 
 from . import backend, session
 
@@ -49,6 +50,7 @@ class Handler(object):
         except Exception as e:
             log.error(e)
             log.error('unidentified error occurred in login handler')
+            traceback.print_exc()
             #raise # DEBUG
             return 500, {'err':'sth wrong when handle you msg'}
 
