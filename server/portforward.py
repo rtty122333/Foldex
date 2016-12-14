@@ -1,6 +1,5 @@
 from twisted.internet import protocol
 from twisted.python import log
-import netns
 
 class Proxy(protocol.Protocol):
     noisy = True
