@@ -3,6 +3,8 @@
 import logging
 import requests
 
+log = logging.getLogger(__name__)
+
 class AgentClient:
 
     def __init__(self, ip, port=9704):
@@ -19,6 +21,7 @@ class AgentClient:
     def set_storage_enabled(self, enable):
         try:
             d = { 'enable': enable }
+            log.info('[{}] set storage enable: {}'.format(self.ip, d))
             r = requests.post('http://{}:{}/usb_storage'.format(self.ip, self.port), json=d, timeout=5)
             return r.json()
         except requests.Timeout:
@@ -34,6 +37,7 @@ class AgentClient:
     def enable_usb_devices(self, id_list):
         try:
             d = { 'update': id_list }
+            log.info('[{}] set storage enable: {}'.format(self.ip, d))
             r = requests.post('http://{}:{}/usb_device'.format(self.ip, self.port), json=d, timeout=5)
             return r.json()
         except requests.Timeout:

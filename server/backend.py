@@ -52,6 +52,20 @@ def login(username, password):
         log.error(e)
         raise
 
+def _update_device_policy(client_ip, policy, devices):
+    ac = agentclient.AgentClient(client_ip)
+
+    enable = bool(int(policy) & 0x01)
+    result = ac.set_storage_enabled(enable)
+    log.debug('enable storage: {}, response: {}'.format(enable, result))
+
+    if not devices:
+        devs = []
+    else:
+        devs = map(str.strip, str(devices).split(','))
+    result = ac.enable_usb_devices(devs)
+    log.debug('enable devices: {}, response: {}'.format(devs, result))
+
 def _request_connect_cb(msg, user, vm_id, request):
     res = msg['res']
     if 'err' not in res:
@@ -67,17 +81,9 @@ def _request_connect_cb(msg, user, vm_id, request):
         log.debug('local ip: {}, local port: {}'.format(_local_ip, localport))
         _connections[vm_id] = localport
 
-        # TODO contact client agent
+        # contact client agent
         client_ip = request.getClientIP()
-        ac = agentclient.AgentClient(client_ip)
-
-        enable = (vm_info['policy'] & 0x01) as bool
-        result = ac.set_storage_enabled(enable)
-        log.debug('enable storage: {}, response: {}'.format(enable, result))
-
-        devs = info['enabled_devices']
-        result = ac.enable_usb_devices(devs)
-        log.debug('enable devices: {}, response: {}'.format(devs, result))
+        _update_device_policy(client_ip, vm_info['policy'], vm_info['device_id'])
     else:
         log.error(res['err'])
 
@@ -106,7 +112,7 @@ def request_connect(token, vm_id, request):
         log.error('Cannot find free port: {}'.format(e))
 
 def disconnect_user(user, vm_id):
-    # 如果是前端请求断开连接，次函数会执行两次，
+    # 如果是前端请求断开连接，此函数会执行两次，
     # 一次是响应前端请求，一次是断开之后响应客户端请求
     log.debug('disconnecting vm: {}'.format(vm_id))
     localport = _connections[vm_id]
@@ -122,6 +128,12 @@ def disconnect(token, vm_id):
     except session.InvalidTokenError as e:
         log.error(e)
         raise
+
+def request_update_device_policy(vm_id, policy, devices):
+    online_client = filter(lambda i: i['vm'] == vm_id, user_status())
+    if online_client:
+        client_ip = online_client[0]['client_addr']
+        _update_device_policy(client_ip, policy, devices)
 
 def start_heartbeat_monitor():
     _monitor.start()
@@ -151,5 +163,5 @@ def init_user(token, from_ip):
 
 
 def user_status():
-    status = [{'user': t[0], 'vm': t[1], 'ip_addr': t[2]} for t in _monitor.status()]
+    status = [{'user': t[0], 'vm': t[1], 'ip_addr': t[2], 'client_addr': t[3]} for t in _monitor.status()]
     return status

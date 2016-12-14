@@ -48,7 +48,7 @@ class UserMonitor(object):
         for username in self.memo:
             user = self.memo[username]
             if user.online:
-                yield username, user.vm, user.vm_ip
+                yield username, user.vm, user.vm_ip, user.client_ip
 
     def refresh_status(self):
         while not self.terminated:

@@ -123,6 +123,7 @@ class Session(object):
                 #'host':        vm.vm_serverip,
                 'policy':      vm.policy_device,
                 'vnc_port':    vm.vnc_port,
+                'device_id':   vm.device_id,
                 'os':          'win'
             }
             _vm_ips[vm.vm_uuid] = vm.vm_public_ip

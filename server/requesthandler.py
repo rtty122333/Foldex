@@ -16,6 +16,7 @@ class Handler(object):
             "logout":   self.logout,
             "conn":     self.connect_vm,
             "disconn":  self.disconnect_vm,
+            "policy":   self.update_policy,
             "heartbeat":self.heartbeat
         }
         self.handlers['GET'] = {
@@ -83,3 +84,11 @@ class Handler(object):
 
     def user_status(self, msg, request):
         return 200, backend.user_status()
+
+    def update_policy(self, msg, request):
+        log.debug('in policy handler')
+        try:
+            backend.request_update_device_policy(msg['vm_id'], msg['storage'], msg['devices'])
+            return 200, {'status': 'OK'}
+        except Exception as e:
+            return 500, {'err': str(e)}
