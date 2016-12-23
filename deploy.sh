@@ -7,6 +7,7 @@ conf=$DIR/etc/foldex.conf.gen
 echo "[server]" > $conf
 echo "host=0.0.0.0" >> $conf
 echo "port=8893" >> $conf
+echo "use_proxy=False" >> $conf
 
 read -p "Please input local server ip (NOT 127.0.0.1): " lip
 echo "local_ip=$lip" >> $conf
