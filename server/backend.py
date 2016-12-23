@@ -19,6 +19,8 @@ opt_server_group = cfg.OptGroup(name='server',
 server_opts = [
     cfg.StrOpt('local_ip', default='192.168.1.41',
                help=('Local IP')),
+    cfg.BoolOpt('use_proxy', default=True,
+               help=('Enable connection proxy')),
 ]
 
 CONF = cfg.CONF
@@ -31,6 +33,7 @@ _monitor = None
 _proxy = twist_forward.ForwardInst()
 
 _local_ip = CONF.server.local_ip
+_use_proxy = CONF.server.use_proxy
 
 _connections = {}
 
@@ -73,13 +76,16 @@ def _request_connect_cb(msg, user, vm_id, request):
         ip = vm_info['public_ip']
         log.debug('vm ip: {}'.format(ip))
 
-        localport = _proxy.addProxy(ip, 3389)
-
-        res[vm_id]['rdp_ip'] = _local_ip
-        res[vm_id]['rdp_port'] = localport
+        if _use_proxy:
+            localport = _proxy.addProxy(ip, 3389)
+            res[vm_id]['rdp_ip'] = _local_ip
+            res[vm_id]['rdp_port'] = localport
+            _connections[vm_id] = localport
+            log.debug('local ip: {}, local port: {}'.format(_local_ip, localport))
+        else:
+            res[vm_id]['rdp_ip'] = ip #_local_ip
+            res[vm_id]['rdp_port'] = 3389 #localport
         res[vm_id]['policy'] = vm_info['policy']
-        log.debug('local ip: {}, local port: {}'.format(_local_ip, localport))
-        _connections[vm_id] = localport
 
         # contact client agent
         client_ip = request.getClientIP()
@@ -115,8 +121,9 @@ def disconnect_user(user, vm_id):
     # 如果是前端请求断开连接，此函数会执行两次，
     # 一次是响应前端请求，一次是断开之后响应客户端请求
     log.debug('disconnecting vm: {}'.format(vm_id))
-    localport = _connections[vm_id]
-    _proxy.deleteProxy(localport)
+    if _use_proxy:
+        localport = _connections[vm_id]
+        _proxy.deleteProxy(localport)
     _monitor.update_connection(user, vm=None)
     _monitor.notify(user)
     return {'status': 'OK'}

@@ -33,7 +33,6 @@ class Singleton(object):
         return cls._inst
 
 class Proxy():
-
     def __init__(self, dest_ip, dest_port, local_ip=''):
         self.tmpport = findFreePort()
         if self.tmpport != None:
@@ -50,7 +49,6 @@ class Proxy():
         return self.tmpport
 
 class ForwardInst(Singleton):
-
     def __init__(self):
         self.forwardlist = {}
 
