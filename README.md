@@ -12,10 +12,6 @@
 
         sudo pip install service_identity
 
-### TODO:
+## 部署
 
-- 用部署工具自动配置环境
-
-## 程序配置
-
-- 将 `etc/foldex.conf` 中的参数修改为合适值，复制到 `/etc/foldex/`下
+- 运行 `deploy.sh`，按照提示输入配置内容
