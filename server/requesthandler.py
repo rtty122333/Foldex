@@ -17,7 +17,8 @@ class Handler(object):
             "conn":     self.connect_vm,
             "disconn":  self.disconnect_vm,
             "policy":   self.update_policy,
-            "heartbeat":self.heartbeat
+            "heartbeat":self.heartbeat,
+            "settings": self.settings
         }
         self.handlers['GET'] = {
             "vdstatus": self.user_status
@@ -92,3 +93,13 @@ class Handler(object):
             return 200, {'status': 'OK'}
         except Exception as e:
             return 500, {'err': str(e)}
+
+    def settings(self, msg, request):
+        log.debug("in settings handler")
+        res = {}
+        if 'query' in msg:
+            queries = msg['query'].split(',')
+            if 'otp' in queries:
+                backend.settings_append_otp(res)
+            return 200, res
+

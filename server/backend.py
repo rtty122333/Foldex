@@ -23,9 +23,19 @@ server_opts = [
                help=('Enable connection proxy')),
 ]
 
+opt_client_group = cfg.OptGroup(name='client',
+                            title='Client settings')
+
+client_opts = [
+    cfg.StrOpt('otp', default=False,
+               help=('Enable otp')),
+]
+
 CONF = cfg.CONF
 CONF.register_group(opt_server_group)
 CONF.register_opts(server_opts, opt_server_group)
+CONF.register_group(opt_client_group)
+CONF.register_opts(client_opts, opt_client_group)
 
 cfg.CONF(default_config_files=['/etc/foldex/foldex.conf'])
 
@@ -172,3 +182,6 @@ def init_user(token, from_ip):
 def user_status():
     status = [{'user': t[0], 'vm': t[1], 'ip_addr': t[2], 'client_addr': t[3]} for t in _monitor.status()]
     return status
+
+def settings_append_otp(res):
+    res['otp'] = CONF.client.otp

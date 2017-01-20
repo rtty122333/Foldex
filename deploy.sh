@@ -4,7 +4,23 @@ DIR="$(cd "$(dirname $0)" && pwd)"
 
 ### Generate config file
 conf=$DIR/etc/foldex.conf.gen
-echo "[server]" > $conf
+echo "[client]" > $conf
+while true; do
+    read -p "Enable OTP[y/n]? " yn
+    case $yn in
+        [Yy] )
+            echo "otp=True" >> $conf
+            break
+            ;;
+        [Nn] )
+            echo "otp=False" >> $conf
+            break
+            ;;
+        * ) echo "Invalid input. Enter y/n:";;
+    esac
+done
+
+echo -e "\n[server]" > $conf
 echo "host=0.0.0.0" >> $conf
 echo "port=8893" >> $conf
 echo "use_proxy=False" >> $conf
@@ -18,9 +34,8 @@ read -p "Please input initcloud server ip: " iip
 echo "host=$iip" >> $conf
 echo "port=8081" >> $conf
 
-echo "Ready to apply settings. Confirm[y/n]?"
 while true; do
-    read yn
+    read -p "Ready to apply settings. Confirm[y/n]? " yn
     case $yn in
         [Yy] ) break;;
         [Nn] ) exit;;
