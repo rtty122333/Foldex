@@ -20,7 +20,7 @@ while true; do
     esac
 done
 
-echo -e "\n[server]" > $conf
+echo -e "\n[server]" >> $conf
 echo "host=0.0.0.0" >> $conf
 echo "port=8893" >> $conf
 echo "use_proxy=False" >> $conf
