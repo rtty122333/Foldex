@@ -78,6 +78,7 @@ def _update_device_policy(client_ip, policy, devices):
         devs = map(str.strip, str(devices).split(','))
     result = ac.enable_usb_devices(devs)
     log.debug('enable devices: {}, response: {}'.format(devs, result))
+    return result
 
 def _request_connect_cb(msg, user, vm_id, request):
     res = msg['res']
@@ -99,7 +100,8 @@ def _request_connect_cb(msg, user, vm_id, request):
 
         # contact client agent
         client_ip = request.getClientIP()
-        _update_device_policy(client_ip, vm_info['policy'], vm_info['device_id'])
+        agentres = _update_device_policy(client_ip, vm_info['policy'], vm_info['device_id'])
+        # TODO prevent connection if client agent failed
     else:
         log.error(res['err'])
 

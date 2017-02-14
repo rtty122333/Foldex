@@ -17,6 +17,10 @@ class AgentClient:
             return r.json()
         except requests.Timeout:
             return {'state': 'error', 'description': 'timeout'}
+        except requests.ConnectionError:
+            return {'state': 'error', 'description': 'cannot connect to client agent'}
+        except Exception:
+            return {'state': 'error', 'description': 'unexpected error'}
 
     def set_storage_enabled(self, enable):
         try:
@@ -26,6 +30,10 @@ class AgentClient:
             return r.json()
         except requests.Timeout:
             return {'state': 'error', 'description': 'timeout'}
+        except requests.ConnectionError:
+            return {'state': 'error', 'description': 'cannot connect to client agent'}
+        except Exception:
+            return {'state': 'error', 'description': 'unexpected error'}
 
     def get_enabled_usb_devices(self):
         try:
@@ -33,6 +41,10 @@ class AgentClient:
             return r.json()
         except requests.Timeout:
             return {'state': 'error', 'description': 'timeout'}
+        except requests.ConnectionError:
+            return {'state': 'error', 'description': 'cannot connect to client agent'}
+        except Exception:
+            return {'state': 'error', 'description': 'unexpected error'}
 
     def enable_usb_devices(self, id_list):
         try:
@@ -42,3 +54,7 @@ class AgentClient:
             return r.json()
         except requests.Timeout:
             return {'state': 'error', 'description': 'timeout'}
+        except requests.ConnectionError:
+            return {'state': 'error', 'description': 'cannot connect to client agent'}
+        except Exception:
+            return {'state': 'error', 'description': 'unexpected error'}
