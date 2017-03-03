@@ -88,7 +88,7 @@ class Session(object):
         csrftoken = self.client.cookies['csrftoken']
         login_data = {
             'username': username,
-	    'type': 'vdi_client', # login type (default=web)
+            'type': 'vdi_client', # login type (default=web)
             'password': password,
             'csrfmiddlewaretoken': csrftoken,
             'next': '/'
