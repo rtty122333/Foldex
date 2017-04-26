@@ -9,6 +9,12 @@ from . import backend, session
 log = logging.getLogger(__name__)
 
 class Handler(object):
+    """Request handler class, encapsulates handlers.
+
+    Attributes:
+        handlers (dict): an action to handler mapping.
+    """
+
     def __init__(self):
         self.handlers = {}
         self.handlers['POST'] = {
@@ -24,69 +30,81 @@ class Handler(object):
             "vdstatus": self.user_status
         }
 
-    def handle(self, request, action, msgObj):
+    def handle(self, request, action, data):
+        """Request triage. Calls handler corresponding to the action.
+
+        Args:
+            request (obj): the request object.
+            action (str): api action (login, conn, etc.).
+            data (dict): request data.
+        Raises:
+            Exception: if under layer handler raises.
+        """
         method = request.method
-        log.debug('[{}] action: {}, msg: {}'.format(method, action, msgObj))
+        log.info('request received [{}] action: {}, data: {}'.format(method, action, data))
         try:
-            return self.handlers[method].get(action)(msgObj, request)
+            return self.handlers[method].get(action)(data, request)
         except Exception as e:
-            log.error(e)
+            log.exception(e)
             errstr = "error processing {} action: {}".format(method, action)
             log.error(errstr)
-            #raise # DEBUG
             return 400, {'err': errstr}
 
-    def login(self, msgObj, request):
+    def login(self, data, request):
+        """Authenticate in initcloud and fetch VM info.
+
+        Returns:
+            tuple: HTTP response code and messages.
+        """
         log.debug('in login handler')
         try:
-            # 请求keystone获得身份认证结果
-            # 认证通过请求vm信息
-            # TODO: 得到vm获取本地策略
-            # 返回认证结果+vm信息+本地策略
-            # 本地sessions更新接收heartBeat
-            res = backend.login(msgObj[u'username'], msgObj[u'password'])
-            backend.init_user(res[u'token'], msgObj[u'client_ip'])
+            res = backend.login(data[u'username'], data[u'password'])
+            backend.init_user(res[u'token'], data[u'client_ip'])
             return 200, res
         except session.AuthenticationFailure:
             return 401, {'err': 'invalid username or password'}
         except Exception as e:
-            log.error(e)
+            log.exception(e)
             log.error('unidentified error occurred in login handler')
-            traceback.print_exc()
-            #raise # DEBUG
             return 500, {'err':'sth wrong when handle you msg'}
 
-    # 未使用
-    def logout(self, msgObj, request):
+    def logout(self, data, request):
+        """(TODO) Unused for now."""
         log.debug("in logout handler")
-        return 200, msgObj
+        return 200, data
 
-    def connect_vm(self, msgObj, request):
+    def connect_vm(self, data, request):
+        """VM connection request handler."""
         log.debug('in connect_vm handler')
         try:
-            backend.request_connect(msgObj[u'token'], msgObj[u'vm_id'], request)
-            return -1, None # 推迟到 request_connect 函数进行回复
+            backend.request_connect(data[u'token'], data[u'vm_id'], request)
+            return -1, None # postpone the response to request_connect()
         except session.VMError as e:
             return 500, {'err': str(e)}
 
-    def disconnect_vm(self, msgObj, request):
+    def disconnect_vm(self, data, request):
+        """VM disconnection request handler."""
         log.debug("in disconnect_vm handler")
-        res = backend.disconnect(msgObj[u'token'], msgObj[u'vm_id'])
+        res = backend.disconnect(data[u'token'], data[u'vm_id'])
         return 200, res
 
-    def heartbeat(self, msgObj, request):
+    def heartbeat(self, data, request):
+        """heartbeat handler."""
         log.debug("in heartbeat handler")
-        if 'vm_id' in msgObj:
-            backend.heartbeat(msgObj[u'token'], msgObj[u'client_ip'], msgObj[u'vm_id'])
+        if 'vm_id' in data:
+            backend.heartbeat(data[u'token'], data[u'client_ip'], data[u'vm_id'])
         else:
-            backend.heartbeat(msgObj[u'token'], msgObj[u'client_ip'])
+            backend.heartbeat(data[u'token'], data[u'client_ip'])
 
         return 204, None
 
-    def user_status(self, msg, request):
+    def user_status(self, data, request):
+        """User status query handler."""
+        log.debug("user info requested")
         return 200, backend.user_status()
 
-    def update_policy(self, msg, request):
+    def update_policy(self, data, request):
+        """Client USB device policy request handler."""
         log.debug('in policy handler')
         try:
             backend.request_update_device_policy(msg['vm_id'], msg['storage'], msg['devices'])
@@ -94,7 +112,8 @@ class Handler(object):
         except Exception as e:
             return 500, {'err': str(e)}
 
-    def settings(self, msg, request):
+    def settings(self, data, request):
+        """Global settings query handler. OTP is the only option now."""
         log.debug("in settings handler")
         res = {}
         if 'query' in msg:

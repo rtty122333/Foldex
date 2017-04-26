@@ -10,6 +10,7 @@ from oslo_config import cfg
 
 log = logging.getLogger(__name__)
 
+# register config items and groups.
 opt_ec_group = cfg.OptGroup(name='evercloud',
                             title='Evercloud related options')
 ec_opts = [
@@ -25,13 +26,12 @@ CONF.register_opts(ec_opts, opt_ec_group)
 
 
 class dict2obj(object):
+    """A class which converts a dict to an object (its instance)."""
     def __init__(self, dictobj):
         self.__dict__.update(dictobj)
 
 
 class AuthenticationFailure(RuntimeError):
-    """认证异常"""
-
     def __init__(self, user):
         super(AuthenticationFailure, self).__init__('Authentication failure: {}'.format(user))
 
@@ -42,27 +42,41 @@ class InvalidTokenError(RuntimeError):
 
 
 class VMError(RuntimeError):
-    """VM状态异常"""
-
     def __init__(self, msg):
         super(VMError, self).__init__(msg)
 
 
-_vm_ips = {}
+_vm_ips = {} # cache VM - ip relations for later lookup
 
 
 class Session(object):
-    """用户会话类，以用户的身份执行操作。"""
+    """User session class, performs actions on behalf
+    of the user.
 
-    # 状态轮询间隔
+    Attributes:
+        host (str): initcloud host address.
+        auth_url (str): initcloud login api url.
+        query_url (str): initcloud VM query url.
+        action_url (str): initcloud VM action url.
+        client (obj): request sender object.
+    """
+
+    # VM status polling interval
     status_check_interval = 0.5
-    # 等待状态超时时间
+    # VM start waiting timeout
     status_wait_timeout = 10
-
+    # Mapping of tokens and users
     token_map = {}
 
     @classmethod
     def get(cls, token):
+        """Fetch a user session by its token.
+
+        Args:
+            token (str): session token.
+        Raises:
+            InvalidTokenError: if the token is not registered.
+        """
         try:
             session = cls.token_map[token]
             return session
@@ -71,13 +85,17 @@ class Session(object):
 
     @classmethod
     def register(cls, session):
+        """Register a user session with its token."""
         cls.token_map[session.token] = session
 
 
     def __init__(self, username, password):
-        """使用用户名和密码创建会话。
+        """Creates a session for user.
 
-        自动进行身份验证，验证失败时抛出异常。
+        Sends user authentication request to initcloud.
+
+        Raises:
+            AuthenticationFailure: if initcloud responds code other than 200.
         """
         self.host = 'http://{}:{}'.format(CONF.evercloud.host, CONF.evercloud.port)
         self.auth_url = '/'.join((self.host, 'login'))
@@ -93,6 +111,7 @@ class Session(object):
             'csrfmiddlewaretoken': csrftoken,
             'next': '/'
         }
+        log.info("sending request to initcloud: [POST] {}, {}".format(self.auth_url, login_data))
         login_return = self.client.post(self.auth_url, data=login_data, headers={ 'Referer': self.auth_url })
         if login_return.status_code == 200:
             self.token = csrftoken
@@ -102,13 +121,17 @@ class Session(object):
             raise AuthenticationFailure(username)
 
     def get_vms(self):
-        """获取用户项目中的所有VM。
+        """Get info of all VMs assigned to the user.
 
-        返回每个VM的id，状态和浮动ip。
+        Returns:
+            dict: mapping of VM uuid and VM info.
         """
+
+        log.info("sending request to initcloud: [GET] {}".format(self.query_url))
         instances = self.client.get(self.query_url)
         print(instances.content)
-        # (workaround) 登录 api 无论成功与否都返回 200，只能在这里增加判断
+        # (workaround) initcloud login api always returns 200, has to
+        # confirm if login succeeded here.
         if instances.status_code != 200:
             raise AuthenticationFailure(self.username)
         instances = json.loads(instances.content)
@@ -131,13 +154,16 @@ class Session(object):
         return info
 
     def wait_for_status(self, vm_id, status, timeout):
-        """等待指定VM达到需要的状态。
+        """Wait for the VM to reach the wanted state.
 
-        如果VM处于错误状态或超时则抛出异常。
-        status: 可能的值为 ACTIVE, BUILDING, DELETED, ERROR, HARD_REBOOT, PASSWORD,
+        Args:
+            status (str): all possible values are ACTIVE, BUILDING, DELETED, ERROR, HARD_REBOOT, PASSWORD,
                 PAUSED, REBOOT, REBUILD, RESCUED, RESIZED, REVERT_RESIZE, SHUTOFF,
                 SOFT_DELETED, STOPPED, SUSPENDED, UNKNOWN, VERIFY_RESIZE
-        timeout: 超时时限，秒
+            timeout (int): wait for at most 'timeout' seconds.
+
+        Raises:
+            VMError: if the VM is in ERROR state or timed out.
         """
         now = time.time()
         deadline = now + timeout
@@ -153,15 +179,22 @@ class Session(object):
             raise VMError('Action timeout.')
 
     def start_vm(self, vm_id):
-        """启动用户的VM。
+        """Power the VM on.
 
-        返回时VM已启动，或因错误无法启动，或操作超时。
-        后两者抛出VMError异常。
+        When the function returns, either the VM is already powered on
+        or an error occurred.
+
+        Raises:
+            VMError: if an initcloud or openstack error occurred.
+
+        Returns:
+            dict: HTTP response code and messages.
         """
         vm = dict2obj(self.get_vms()[vm_id])
         if vm.status == 'SHUTOFF': # 只在关机状态下执行
             log.info('Starting VM {}'.format(vm_id))
             action = { 'instance': vm.internal_id, 'action': 'power_on' }
+            log.info("sending request to initcloud: [GET] {}, {}".format(self.action_url, action))
             ret = self.client.get(self.action_url, params=action)
             ret = json.loads(ret.content)
             if ret.get('success', True) is False:
@@ -203,15 +236,19 @@ class Session(object):
         return info
 
     def stop_vm(self, vm_id):
-        """关闭用户的VM。
+        """Power the VM off.
 
-        返回时VM已关闭，或因错误无法关闭，或操作超时。
-        后两者抛出VMError异常。
+        When the function returns, either the VM is already powered off,
+        or an error occurred, or timed out.
+
+        Raises:
+            VMError: if an initcloud or openstack error occurred.
         """
         vm = dict2obj(self.get_vms()[vm_id])
         if vm.status == 'ACTIVE': # 只在开机状态下执行
             log.info('Shuting down VM {}'.format(vm_id))
             action = { 'instance': vm.internal_id, 'action': 'power_off' }
+            log.info("sending request to initcloud: [GET] {}, {}".format(self.action_url, action))
             ret = self.client.get(self.action_url, params=action)
             ret = json.loads(ret.content)
             if ret['OPERATION_STATUS'] == 1: # success
@@ -224,4 +261,5 @@ class Session(object):
 
 
 def lookup_vm_ip(vm_id):
+    """Get VM public ip by its id."""
     return _vm_ips.get(vm_id, None)

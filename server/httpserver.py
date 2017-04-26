@@ -13,10 +13,16 @@ _handler = requesthandler.Handler()
 
 
 class VDIResource(resource.Resource):
+    """HTTP service content."""
 
     isLeaf = True
 
     def render(self, request):
+        """Process incoming requests.
+
+        Args
+            request (obj): HTTP request to be handled.
+        """
         if request.method == 'GET':
             data = {}
         else:
@@ -26,7 +32,7 @@ class VDIResource(resource.Resource):
         action = request.postpath[0]
 
         code, response = _handler.handle(request, action, data) 
-        if code == -1: # Deferred
+        if code == -1: # Response deferred
             return server.NOT_DONE_YET
         else:
             request.setResponseCode(code)

@@ -14,6 +14,7 @@ from twisted.web.resource import Resource
 
 log = logging.getLogger(__name__)
 
+# register config items and groups.
 opt_server_group = cfg.OptGroup(name='server',
                             title='Foldex Server IP Port')
 
@@ -30,7 +31,14 @@ CONF.register_opts(server_opts, opt_server_group)
 
 
 class Server(object):
+    """HTTP/Websocket server, providing api endpoints."""
+
     def run(self):
+        """Start the server.
+
+        Raises:
+            Exception: if the server failed to start.
+        """
         cfg.CONF(default_config_files=['/etc/foldex/foldex.conf'])
         host, port = CONF.server.host, CONF.server.port
 
@@ -50,12 +58,12 @@ class Server(object):
             reactor.suggestThreadPoolSize(30)
             reactor.listenTCP(port, site)
 
-            log.debug("Serving HTTP/WS at port {}".format(port))
+            log.info("Serving HTTP/WS at port {}".format(port))
             reactor.run()
         except KeyboardInterrupt:
             log.info("Terminating...")
         except Exception as e:
-            log.debug(e)
+            log.exception(e)
             log.error("Failed to start server")
             raise
         finally:
